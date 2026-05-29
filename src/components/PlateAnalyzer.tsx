@@ -446,14 +446,12 @@ function AnalysisCard({ analysis }: { analysis: PlateAnalysis }) {
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide",
-              analysis.modelUsed === "gemini-2.5-flash"
-                ? "bg-primary/15 text-primary"
-                : "bg-sage/20 text-sage",
+              "bg-primary/15 text-primary",
             )}
-            title={analysis.modelUsed === "gemini-2.5-flash" ? "Google Gemini 2.5 Flash vision" : "Google Gemini 2.5 Pro vision"}
+            title="Google Gemini 2.5 Flash vision"
           >
             <Sparkles className="h-2.5 w-2.5" />
-            {analysis.modelUsed === "gemini-2.5-flash" ? "Gemini 2.5 Flash" : "Gemini 2.5 Pro"}
+            Gemini 2.5 Flash
           </span>
           {analysis.ragGrounding && analysis.ragGrounding.length > 0 && (
             <span

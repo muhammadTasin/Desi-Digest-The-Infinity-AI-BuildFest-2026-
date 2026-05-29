@@ -1,24 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { embedMany, generateText, Output } from "ai";
-import { createGeminiEmbeddingModel, createGeminiProvider, GEMINI_EMBEDDING_DIMS } from "@/lib/ai-gateway.server";
+import { generateText } from "ai";
+import { VISION_MODEL_NAME, createGeminiProvider, logAiModelUse } from "@/lib/ai-gateway.server";
 import { ALLOWED_IMAGE_MIME_TYPES, normalizeImageMimeType, parseImageDataUrl } from "@/lib/image-mime";
 import { BOUDI_KNOWLEDGE } from "@/lib/nanumoni-knowledge";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Goal, type Profile, summarizeProfile } from "@/lib/profile.functions";
 
-const VISION_MODEL_NAME = "gemini-2.5-flash" as const;
-
-type RagMatch = {
-  food_id: string;
-  name_en: string;
-  name_bn: string;
-  category: string;
-  typical_portion_grams: number;
-  nutrition_per_portion: Record<string, number>;
-  nanumoni_friendly_note: string | null;
-  similarity: number;
-};
 
 
 const InputSchema = z
@@ -200,7 +188,7 @@ const AnalysisSchema = z.object({
 });
 
 export type PlateAnalysis = z.infer<typeof AnalysisSchema> & {
-  modelUsed: "gemini-2.5-pro" | "gemini-2.5-flash";
+  modelUsed: typeof VISION_MODEL_NAME;
   fallbackReason?: string;
   profileIncomplete?: boolean;
   missingProfileFields?: string[];
@@ -409,7 +397,8 @@ export const analyzePlate = createServerFn({ method: "POST" })
 
       // 2. Minimal vision test to confirm Gemini can see the image
       phase = "minimal_vision_test";
-      console.info("[plate-analysis] phase:before_minimal_test");
+      logAiModelUse("vision", VISION_MODEL_NAME);
+      console.info("[plate-analysis] phase:before_minimal_test", { model: VISION_MODEL_NAME });
       let testText = "";
       try {
         const { text: result } = await generateText({
@@ -425,9 +414,13 @@ export const analyzePlate = createServerFn({ method: "POST" })
           ],
         });
         testText = result;
-        console.info("[plate-analysis] minimal test success", { testText });
+        console.info("[plate-analysis] minimal test success", {
+          model: VISION_MODEL_NAME,
+          textLength: testText.length,
+        });
       } catch (testError) {
         console.error("[plate-analysis] minimal test failed", {
+          model: VISION_MODEL_NAME,
           error: testError instanceof Error ? testError.message : String(testError),
         });
         // We continue to the main analysis even if the test fails to gather more logs
@@ -452,7 +445,8 @@ CRITICAL JSON RULES:
 5. Every personalized field MUST reflect the user's goals — not generic advice. Be specific, warm, and explainable.`;
 
       phase = "gemini_vision_call";
-      console.info("[plate-analysis] phase:before_gemini");
+      logAiModelUse("vision", VISION_MODEL_NAME);
+      console.info("[plate-analysis] phase:before_gemini", { model: VISION_MODEL_NAME });
 
       const { text: rawText } = await generateText({
         model: gateway(VISION_MODEL_NAME),
@@ -480,10 +474,6 @@ CRITICAL JSON RULES:
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       const jsonString = jsonMatch ? jsonMatch[0] : rawText;
       
-      console.info("[plate-analysis] raw Gemini output before schema parse", {
-        outputPreview: jsonString.slice(0, 1000),
-      });
-
       let analysis;
       
       let candidateJson: any = null;

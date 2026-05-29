@@ -1,7 +1,16 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
-const GEMINI_EMBEDDING_MODEL = "gemini-embedding-001";
+export const CHAT_MODEL_NAME = "gemini-2.5-flash-lite" as const;
+export const VISION_MODEL_NAME = "gemini-2.5-flash" as const;
+export const EMBEDDING_MODEL_NAME = "gemini-embedding-001" as const;
 export const GEMINI_EMBEDDING_DIMS = 1536;
+
+type AiPhase = "chat" | "vision" | "embedding";
+type AiModelName = typeof CHAT_MODEL_NAME | typeof VISION_MODEL_NAME | typeof EMBEDDING_MODEL_NAME;
+
+export function logAiModelUse(phase: AiPhase, model: AiModelName) {
+  console.info("[ai] using model", { phase, model });
+}
 
 export function getGeminiApiKey() {
   const apiKey =
@@ -19,5 +28,5 @@ export function createGeminiProvider() {
 }
 
 export function createGeminiEmbeddingModel() {
-  return createGeminiProvider().embedding(GEMINI_EMBEDDING_MODEL);
+  return createGeminiProvider().embedding(EMBEDDING_MODEL_NAME);
 }

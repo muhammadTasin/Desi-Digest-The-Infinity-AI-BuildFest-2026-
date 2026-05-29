@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { generateText, Output } from "ai";
-import { createGeminiProvider } from "@/lib/ai-gateway.server";
+import { CHAT_MODEL_NAME, VISION_MODEL_NAME, createGeminiProvider, logAiModelUse } from "@/lib/ai-gateway.server";
 import { BOUDI_KNOWLEDGE } from "@/lib/nanumoni-knowledge";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { summarizeProfile, type Profile } from "@/lib/profile.functions";
@@ -72,7 +72,8 @@ export const generatePlan = createServerFn({ method: "POST" })
 
     let model;
     try {
-      model = createGeminiProvider()("gemini-2.5-flash");
+      logAiModelUse("chat", CHAT_MODEL_NAME);
+      model = createGeminiProvider()(CHAT_MODEL_NAME);
     } catch {
       throw new Error("Gemini is not configured. Set GEMINI_API_KEY.");
     }
@@ -95,12 +96,29 @@ ${BOUDI_KNOWLEDGE}
 Build today's plan (3-5 meals: breakfast, lunch, dinner, optional snacks). Total daily calories should match activity+goals. Show explicit reasoning_steps. Use Bangladeshi names everywhere.`;
 
     try {
-      const { experimental_output } = await generateText({
-        model,
-        system: sys,
-        experimental_output: Output.object({ schema: PlanSchema }),
-        messages: [{ role: "user", content: userMsg }],
-      });
+      let experimental_output: NutritionPlan;
+      try {
+        const result = await generateText({
+          model,
+          system: sys,
+          experimental_output: Output.object({ schema: PlanSchema }),
+          messages: [{ role: "user", content: userMsg }],
+        });
+        experimental_output = result.experimental_output;
+      } catch (primaryError) {
+        console.error("[generatePlan] primary model failed", {
+          model: CHAT_MODEL_NAME,
+          error: primaryError instanceof Error ? primaryError.message : String(primaryError),
+        });
+        logAiModelUse("chat", VISION_MODEL_NAME);
+        const result = await generateText({
+          model: createGeminiProvider()(VISION_MODEL_NAME),
+          system: sys,
+          experimental_output: Output.object({ schema: PlanSchema }),
+          messages: [{ role: "user", content: userMsg }],
+        });
+        experimental_output = result.experimental_output;
+      }
       // Force restaurants empty in alt mode regardless of model output
       if (profile?.alternative_mode) experimental_output.restaurant_picks = [];
       return experimental_output;

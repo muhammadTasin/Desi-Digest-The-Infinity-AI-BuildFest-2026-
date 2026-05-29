@@ -5,14 +5,19 @@ import { embedMany } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { FOODS, buildEmbedText, type FoodSeed } from "@/lib/foods-dataset";
-import { createGeminiEmbeddingModel, GEMINI_EMBEDDING_DIMS } from "@/lib/ai-gateway.server";
+import {
+  EMBEDDING_MODEL_NAME,
+  createGeminiEmbeddingModel,
+  GEMINI_EMBEDDING_DIMS,
+  logAiModelUse,
+} from "@/lib/ai-gateway.server";
 
-const EMBED_MODEL = "gemini-embedding-001";
 const EMBED_DIMS = GEMINI_EMBEDDING_DIMS;
 
 async function embed(input: string | string[], isQuery = false): Promise<number[][]> {
   const values = Array.isArray(input) ? input : [input];
   try {
+    logAiModelUse("embedding", EMBEDDING_MODEL_NAME);
     const { embeddings } = await embedMany({
       model: createGeminiEmbeddingModel(),
       values,
@@ -34,7 +39,7 @@ async function embed(input: string | string[], isQuery = false): Promise<number[
     return embeddings;
   } catch (error) {
     console.error("[food-kb-sync] embedding failed", {
-      model: EMBED_MODEL,
+      model: EMBEDDING_MODEL_NAME,
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
       hasGoogleKey: Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY),
       error: error instanceof Error ? error.message : String(error),
@@ -63,7 +68,7 @@ export const seedFoods = createServerFn({ method: "POST" })
     const toEmbed: FoodSeed[] = [];
     const skipped: string[] = [];
     for (const f of FOODS) {
-      const tag = `${EMBED_MODEL}:${contentHash(f)}`;
+      const tag = `${EMBEDDING_MODEL_NAME}:${contentHash(f)}`;
       if (existingMap.get(f.food_id) === tag) skipped.push(f.food_id);
       else toEmbed.push(f);
     }
@@ -84,7 +89,7 @@ export const seedFoods = createServerFn({ method: "POST" })
         health_tags: f.health_tags,
         nanumoni_friendly_note: f.nanumoni_friendly_note,
         embedding: vectors[i] as unknown as string, // pgvector accepts number[] via supabase-js
-        embedding_source: `${EMBED_MODEL}:${contentHash(f)}`,
+        embedding_source: `${EMBEDDING_MODEL_NAME}:${contentHash(f)}`,
       }));
       const { error } = await supabaseAdmin
         .from("foods")
@@ -97,7 +102,7 @@ export const seedFoods = createServerFn({ method: "POST" })
       total: FOODS.length,
       embedded: inserted,
       skipped: skipped.length,
-      model: EMBED_MODEL,
+      model: EMBEDDING_MODEL_NAME,
     };
   });
 

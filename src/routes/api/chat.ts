@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { createGeminiProvider } from "@/lib/ai-gateway.server";
+import { CHAT_MODEL_NAME, VISION_MODEL_NAME, createGeminiProvider, logAiModelUse } from "@/lib/ai-gateway.server";
 import { BOUDI_SYSTEM_PROMPT } from "@/lib/nanumoni-knowledge";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -47,10 +47,20 @@ export const Route = createFileRoute("/api/chat")({
 
         let model;
         try {
-          model = createGeminiProvider()("gemini-2.5-flash");
+          logAiModelUse("chat", CHAT_MODEL_NAME);
+          model = createGeminiProvider()(CHAT_MODEL_NAME);
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Gemini is not configured";
-          return new Response(message, { status: 500 });
+          console.error("[chat] primary model setup failed", {
+            model: CHAT_MODEL_NAME,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          try {
+            logAiModelUse("chat", VISION_MODEL_NAME);
+            model = createGeminiProvider()(VISION_MODEL_NAME);
+          } catch (fallbackError) {
+            const message = fallbackError instanceof Error ? fallbackError.message : "Gemini is not configured";
+            return new Response(message, { status: 500 });
+          }
         }
 
         const uiMessages = messages as UIMessage[];
