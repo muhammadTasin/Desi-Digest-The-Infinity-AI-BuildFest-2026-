@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzePlate, type PlateAnalysis } from "@/lib/analyze-plate.functions";
+import { ALLOWED_IMAGE_MIME_TYPES, getImageMimeType, parseImageDataUrl } from "@/lib/image-mime";
 import { logMeal } from "@/lib/meals.functions";
 import { NutritionLabel } from "@/components/NutritionLabel";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ type Props = {
 
 const MAX_BYTES = 6_000_000; // 6MB raw; downscale handles big phone photos
 
-async function fileToDownscaledDataUrl(file: File): Promise<string> {
+async function fileToDownscaledDataUrl(file: File, mimeType: string): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((res, rej) => {
@@ -65,7 +66,7 @@ async function fileToDownscaledDataUrl(file: File): Promise<string> {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas not supported");
     ctx.drawImage(img, 0, 0, w, h);
-    return canvas.toDataURL("image/jpeg", 0.85);
+    return canvas.toDataURL(mimeType, 0.85);
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -82,10 +83,13 @@ export function PlateAnalyzer({ trigger, userContext }: Props) {
   const log = useServerFn(logMeal);
 
   const mutation = useMutation({
-    mutationFn: async (dataUrl: string) =>
-      analyze({ data: { imageDataUrl: dataUrl, userContext } }),
+    mutationFn: async (dataUrl: string) => {
+      const payload = parseImageDataUrl(dataUrl);
+      if (!payload) throw new Error("Image upload failed. Please reupload the photo.");
+      return analyze({ data: { ...payload, userContext } });
+    },
     onSuccess: (res) => setAnalysis(res),
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Analysis failed"),
+    onError: (e) => toast.error(getPlateAnalysisErrorMessage(e)),
   });
 
   const logMut = useMutation({
@@ -105,10 +109,14 @@ export function PlateAnalyzer({ trigger, userContext }: Props) {
           const uid = userData.user?.id;
           if (uid) {
             const blob = await (await fetch(imageDataUrl)).blob();
-            const path = `${uid}/${Date.now()}.jpg`;
+            const payload = parseImageDataUrl(imageDataUrl);
+            const contentType = payload?.mimeType ?? "image/jpeg";
+            const extension =
+              contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+            const path = `${uid}/${Date.now()}.${extension}`;
             const { error: upErr } = await supabase.storage
               .from("plate-photos")
-              .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+              .upload(path, blob, { contentType, upsert: false });
             if (!upErr) {
               const { data: pub } = supabase.storage.from("plate-photos").getPublicUrl(path);
               image_url = pub.publicUrl;
@@ -148,18 +156,39 @@ export function PlateAnalyzer({ trigger, userContext }: Props) {
   async function handleFiles(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
+
+    const mimeType = getImageMimeType(file);
+    if (!mimeType || !ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
+      toast.error("Please upload a PNG, JPG, JPEG, or WEBP image.");
+      return;
+    }
+
     if (file.size > MAX_BYTES * 4) {
       toast.error("Photo too large. Please pick a smaller one.");
       return;
     }
     try {
-      const dataUrl = await fileToDownscaledDataUrl(file);
+      const dataUrl = await fileToDownscaledDataUrl(file, mimeType);
       setImageDataUrl(dataUrl);
       setAnalysis(null);
       mutation.mutate(dataUrl);
     } catch {
-      toast.error("Couldn't read that image.");
+      toast.error("Image upload failed. Please reupload the photo.");
     }
+  }
+
+  function getPlateAnalysisErrorMessage(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    if (/Unsupported image MIME type/i.test(message)) {
+      return "Please upload a PNG, JPG, JPEG, or WEBP image.";
+    }
+    if (/Invalid or empty image payload|Image payload is required/i.test(message)) {
+      return "Image upload failed. Please reupload the photo.";
+    }
+    if (/couldn't identify food|no food/i.test(message)) {
+      return "I couldn't identify food in this image. Try a clearer food photo.";
+    }
+    return message || "AI analysis failed. Please try again.";
   }
 
   function reset() {
@@ -196,9 +225,7 @@ export function PlateAnalyzer({ trigger, userContext }: Props) {
     analysis &&
     (!analysis.detected ||
       analysis.blurry ||
-      analysis.dishes.length === 0 ||
-      (analysis.dishes.length > 0 &&
-        analysis.dishes.every((d) => d.confidence === "low")));
+      analysis.dishes.length === 0);
 
 
   return (
@@ -302,12 +329,8 @@ export function PlateAnalyzer({ trigger, userContext }: Props) {
           {/* AI request failed entirely (network, gateway, rate limit, etc.) */}
           {mutation.isError && !mutation.isPending && (
             <NanumoniTroubleCard
-              title="Uff, Nanumoni couldn't see it clearly"
-              message={
-                mutation.error instanceof Error
-                  ? mutation.error.message
-                  : "Something went wrong. Try once more, shona."
-              }
+              title="Analysis did not complete"
+              message={getPlateAnalysisErrorMessage(mutation.error)}
               onRetake={retake}
               onReupload={reupload}
               onRetry={imageDataUrl ? retryAnalysis : undefined}
@@ -389,6 +412,12 @@ function AnalysisCard({ analysis }: { analysis: PlateAnalysis }) {
   const score = Math.round(analysis.healthScore);
   return (
     <div className="space-y-4">
+      {analysis.dishes.length > 0 && analysis.dishes.every((d) => d.confidence === "low") && (
+        <div className="rounded-xl border border-spice/30 bg-spice/10 px-4 py-3 text-sm text-foreground">
+          I can see food, but the estimate may be uncertain.
+        </div>
+      )}
+
       {analysis.profileIncomplete && (
         <div className="flex items-start gap-3 rounded-2xl border border-spice/30 bg-spice/5 px-4 py-3">
           <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-spice/15 text-spice">

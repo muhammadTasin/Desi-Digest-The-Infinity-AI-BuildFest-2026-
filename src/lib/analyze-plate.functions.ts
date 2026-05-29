@@ -2,12 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { embedMany, generateText, Output } from "ai";
 import { createGeminiEmbeddingModel, createGeminiProvider, GEMINI_EMBEDDING_DIMS } from "@/lib/ai-gateway.server";
+import { ALLOWED_IMAGE_MIME_TYPES, normalizeImageMimeType, parseImageDataUrl } from "@/lib/image-mime";
 import { BOUDI_KNOWLEDGE } from "@/lib/nanumoni-knowledge";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Goal, type Profile, summarizeProfile } from "@/lib/profile.functions";
 
 const EMBED_MODEL = "gemini-embedding-001";
 const EMBED_DIMS = GEMINI_EMBEDDING_DIMS;
+const VISION_MODEL_NAME = "gemini-2.5-pro" as const;
+const VISION_FALLBACK_MODEL_NAME = "gemini-2.5-flash" as const;
 
 type RagMatch = {
   food_id: string;
@@ -54,14 +57,16 @@ async function embedBatch(inputs: string[]): Promise<number[][]> {
 }
 
 
-const InputSchema = z.object({
-  imageDataUrl: z
-    .string()
-    .min(32)
-    .max(8_000_000)
-    .refine((s) => s.startsWith("data:image/"), "Must be a data:image/... URL"),
-  userContext: z.string().max(500).optional(),
-});
+const InputSchema = z
+  .object({
+    imageBase64: z.string().min(32).max(8_000_000).optional(),
+    mimeType: z.string().max(64).optional(),
+    imageDataUrl: z.string().min(32).max(8_000_000).optional(),
+    userContext: z.string().max(500).optional(),
+  })
+  .refine((input) => Boolean(input.imageBase64 || input.imageDataUrl), {
+    message: "Image payload is required",
+  });
 
 const AnalysisSchema = z.object({
   detected: z.boolean().describe("True if recognizable food is visible"),
@@ -216,7 +221,9 @@ Estimate portion sizes realistically for a typical Bangladeshi household plate. 
 
 You MUST personalize every output (healthScore, healthExplanation, idealPlateComparison, goalAlignment, goalAdjustedTargets, makeItHealthierTips, personalizedSuggestions) to the user's GOALS and TDEE. The same plate scores differently for different goals — be honest and explainable about why.
 
-Be honest about confidence. If the image is too blurry, dark, or has no food, set detected=false / blurry=true and write a kind Nanumoni-voice message — never invent food.
+Be honest about confidence. If the image is too blurry, dark, or has no food, set detected=false / blurry=true and write a kind Nanumoni-voice message — never invent food. If it's a single food item (like a bowl of rice) or a partial plate, identify it and DO NOT say the image is unclear. Provide a partial but useful analysis.
+
+If you can see only cooked rice / bhat, set detected=true and blurry=false, include one dish such as "Cooked White Rice / Bhat", use medium or high confidence when visually reasonable, and say: "I can see rice, but I may be missing other foods." Do not require a plate shape; bowls, close-ups, partial plates, and single food items are valid food photos.
 
 Always cite knowledge sources you used (FCTB, icddr,b, knowledge base).`;
 
@@ -338,8 +345,30 @@ Extra user note: ${freeText?.trim() || "(none)"}`;
 
 export const analyzePlate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => InputSchema.parse(input))
+  .inputValidator((input: unknown) => {
+    try {
+      return InputSchema.parse(input);
+    } catch (error) {
+      console.error("[plate-analysis] failed", {
+        phase: "schema_parse",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  })
   .handler(async ({ data, context }) => {
+    const parsedDataUrl = data.imageDataUrl ? parseImageDataUrl(data.imageDataUrl) : null;
+    const imageBase64 = data.imageBase64 ?? parsedDataUrl?.imageBase64 ?? "";
+    const mimeType = normalizeImageMimeType(data.mimeType) ?? parsedDataUrl?.mimeType ?? null;
+
+    if (!imageBase64 || imageBase64.length < 1000) {
+      throw new Error("Invalid or empty image payload");
+    }
+
+    if (!mimeType || !ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
+      throw new Error(`Unsupported image MIME type: ${mimeType}`);
+    }
+
     let gateway;
     try {
       gateway = createGeminiProvider();
@@ -368,29 +397,51 @@ ${BOUDI_KNOWLEDGE}
 Return a complete JSON analysis matching the required schema. Every personalized field (healthScore, healthExplanation, idealPlateComparison, goalAlignment, goalAdjustedTargets, makeItHealthierTips, personalizedSuggestions) MUST reflect the user's goals — not generic advice. Be specific, warm, and explainable.`;
 
     const runVision = async (modelId: string) => {
-      const { experimental_output } = await generateText({
-        model: gateway(modelId),
-        system: VISION_SYSTEM,
-        experimental_output: Output.object({ schema: AnalysisSchema }),
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: userPrompt },
-              { type: "image", image: data.imageDataUrl },
-            ],
-          },
-        ],
+      console.info("[plate-analysis] image received", {
+        hasImage: Boolean(imageBase64),
+        mimeType,
+        imageBase64Length: imageBase64.length,
+        model: modelId,
+        hasGeminiKey: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY),
       });
-      return experimental_output;
+
+      try {
+        const { experimental_output } = await generateText({
+          model: gateway(modelId),
+          system: VISION_SYSTEM,
+          experimental_output: Output.object({ schema: AnalysisSchema }),
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: userPrompt },
+                { type: "image", image: imageBase64, mediaType: mimeType },
+              ],
+            },
+          ],
+        });
+        return experimental_output;
+      } catch (error) {
+        console.error("[plate-analysis] failed", {
+          phase: "gemini_vision_call",
+          message: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
     };
 
     const friendlyError = (err: unknown): never => {
       console.error("[analyzePlate] error", err);
       const msg = err instanceof Error ? err.message : "Unknown error";
+      if (/Unsupported image MIME type/i.test(msg)) {
+        throw new Error("Please upload a PNG, JPG, JPEG, or WEBP image.");
+      }
+      if (/Invalid or empty image payload/i.test(msg)) {
+        throw new Error("Image upload failed. Please reupload the photo.");
+      }
       if (/429/.test(msg)) throw new Error("Nanumoni is a bit busy right now (rate limited). Try again in a moment, sona.");
       if (/402/.test(msg)) throw new Error("Gemini API quota exhausted — check your Google AI billing.");
-      throw new Error("Nanumoni couldn't see the plate clearly. Try a brighter, closer photo?");
+      throw new Error("AI analysis failed. Please try again.");
     };
 
     // RAG enrichment: pull FCTB-grounded nutrition for each dish via semantic search.
@@ -454,7 +505,7 @@ Return a complete JSON analysis matching the required schema. Every personalized
     // 1) Primary pass: Gemini 2.5 Pro (fast, multimodal-strong)
     let primary: z.infer<typeof AnalysisSchema>;
     try {
-      primary = await runVision("gemini-2.5-pro");
+      primary = await runVision(VISION_MODEL_NAME);
     } catch (err) {
       return friendlyError(err);
     }
@@ -462,20 +513,20 @@ Return a complete JSON analysis matching the required schema. Every personalized
     const lowReason = isLowConfidence(primary);
     if (!lowReason) {
       const { ragGrounding } = await enrichWithRag(primary);
-      return { ...primary, modelUsed: "gemini-2.5-pro" as const, ragGrounding, ...profileMeta };
+      return { ...primary, modelUsed: VISION_MODEL_NAME, ragGrounding, ...profileMeta };
     }
 
     // 2) Fallback pass: Gemini Flash for a second read on ambiguous plates
     console.log(`[analyzePlate] Gemini Pro low-confidence (${lowReason}) — retrying with Gemini Flash`);
     try {
-      const fallback = await runVision("gemini-2.5-flash");
+      const fallback = await runVision(VISION_FALLBACK_MODEL_NAME);
       // Prefer fallback ONLY if it actually improved confidence
       const fallbackLow = isLowConfidence(fallback);
       if (!fallbackLow || (fallback.dishes.length > primary.dishes.length)) {
         const { ragGrounding } = await enrichWithRag(fallback);
         return {
           ...fallback,
-          modelUsed: "gemini-2.5-flash" as const,
+          modelUsed: VISION_FALLBACK_MODEL_NAME,
           fallbackReason: `Switched to Gemini Flash: ${lowReason}`,
           ragGrounding,
           ...profileMeta,
@@ -485,7 +536,7 @@ Return a complete JSON analysis matching the required schema. Every personalized
       const { ragGrounding } = await enrichWithRag(primary);
       return {
         ...primary,
-        modelUsed: "gemini-2.5-pro" as const,
+        modelUsed: VISION_MODEL_NAME,
         fallbackReason: `Both models had low confidence (${lowReason}). Try a brighter, closer photo.`,
         ragGrounding,
         ...profileMeta,
@@ -495,7 +546,7 @@ Return a complete JSON analysis matching the required schema. Every personalized
       const { ragGrounding } = await enrichWithRag(primary);
       return {
         ...primary,
-        modelUsed: "gemini-2.5-pro" as const,
+        modelUsed: VISION_MODEL_NAME,
         fallbackReason: `Fallback unavailable (${lowReason}).`,
         ragGrounding,
         ...profileMeta,
