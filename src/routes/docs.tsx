@@ -1,328 +1,549 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { 
-  BookOpen, 
-  ExternalLink, 
-  ArrowLeft, 
-  LayoutDashboard, 
-  Cpu, 
-  Database, 
-  ShieldCheck, 
-  Sparkles, 
-  Target,
-  Zap,
-  Globe,
-  Heart,
-  Microscope,
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  CalendarClock,
+  CheckCircle2,
   Code2,
-  Milestone
+  Cpu,
+  Database,
+  ExternalLink,
+  FileText,
+  Globe,
+  HeartPulse,
+  LockKeyhole,
+  Mail,
+  Milestone,
+  Network,
+  PlayCircle,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Users,
+  Workflow,
+  Zap,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import logoMark from "@/assets/logo-mark.png";
 import { VideoBackground } from "@/components/VideoBackground";
-import { useEffect, useState } from "react";
-import { isDemoSession } from "@/lib/demo-session";
-import { supabase } from "@/integrations/supabase/client";
+
+const docsConfig = {
+  isPublic: true,
+  availableFrom: "2026-06-10T00:00:00+06:00",
+  availableUntil: "2026-06-14T23:59:00+06:00",
+  showScheduleNotice: true,
+};
+
+const team = [
+  { name: "Safin", role: "Team Lead and Product Idea", email: "" },
+  { name: "Tasfiq Tasin", role: "Backend, Supabase, Gemini Integration", email: "" },
+  { name: "Mohammed Rayyanul", role: "Frontend and Application UI", email: "" },
+  { name: "Sakib Mahmud", role: "LLM Model Training Support", email: "" },
+  { name: "Nafisa", role: "Project Video", email: "" },
+];
+
+const techStack = [
+  "React",
+  "TanStack Start",
+  "TypeScript",
+  "Vercel Server Functions",
+  "Supabase Auth",
+  "Supabase Postgres",
+  "Supabase Storage",
+  "pgvector",
+  "Google Gemini API",
+  "AI SDK",
+  "Tailwind CSS",
+];
+
+const aiModels = [
+  {
+    name: "Gemini 2.5 Flash-Lite",
+    use: "Conversational nutrition guidance, meal planning, and culturally-aware explanations.",
+  },
+  {
+    name: "Gemini 2.5 Flash",
+    use: "Plate image understanding for the Analyze My Plate workflow.",
+  },
+  {
+    name: "gemini-embedding-001",
+    use: "Food knowledge retrieval and semantic matching against local nutrition context.",
+  },
+];
+
+const roadmap = [
+  "Admin editable documentation dashboard",
+  "Full-text documentation search",
+  "PDF export for judges, mentors, and partners",
+  "Expanded verified Bangladeshi food database",
+  "Deeper physician and dietitian review workflows",
+  "Localized market and vendor-aware recommendations",
+];
+
+const changelog = [
+  {
+    date: "2026-05-30",
+    title: "Public docs module upgraded for submission",
+    detail: "Added access scheduling config, team showcase, architecture, data flow, responsible AI, and roadmap sections.",
+  },
+  {
+    date: "2026-05-26",
+    title: "Backend integration completed",
+    detail: "Supabase auth, database migrations, server functions, Gemini integration, and API health checks were added.",
+  },
+  {
+    date: "2026-05-25",
+    title: "Core app flows assembled",
+    detail: "Landing page, dashboard, chat, onboarding, plate analyzer, and nutrition guidance screens were prepared.",
+  },
+];
 
 export const Route = createFileRoute("/docs")({
   head: () => ({
     meta: [
-      { title: "Documentation — Deshi Digest / Nanumoni" },
+      { title: "Documentation - Deshi Digest / Nanumoni" },
       {
         name: "description",
-        content: "Technical documentation, architecture, and project overview for Deshi Digest / Nanumoni.",
+        content:
+          "Public project documentation, pitch overview, architecture, AI model notes, team, and roadmap for Deshi Digest / Nanumoni.",
       },
     ],
   }),
   component: DocsPage,
 });
 
-function DocsPage() {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
 
-  useEffect(() => {
-    if (isDemoSession()) {
-      setIsLoggedIn(true);
-      return;
-    }
-    supabase.auth.getSession().then(({ data }) => {
-      setIsLoggedIn(!!data.session);
-    });
-  }, []);
+function formatDhakaDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Dhaka",
+  }).format(new Date(value));
+}
+
+function Section({
+  id,
+  icon: Icon,
+  eyebrow,
+  title,
+  children,
+}: {
+  id: string;
+  icon: LucideIcon;
+  eyebrow?: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="space-y-5 scroll-mt-24">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-warm">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div>
+          {eyebrow ? (
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+          ) : null}
+          <h2 className="font-display text-2xl font-semibold tracking-normal sm:text-3xl">{title}</h2>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function DocsPage() {
+  const scheduleWindow = `${formatDhakaDate(docsConfig.availableFrom)} to ${formatDhakaDate(
+    docsConfig.availableUntil,
+  )} BST`;
 
   return (
-    <div className="relative min-h-screen pb-20">
+    <div className="relative min-h-screen pb-16">
       <VideoBackground />
-      
+
       <header className="sticky top-0 z-30 glass-nav">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-full shadow-warm ring-1 ring-primary/30">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <Link to="/" className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full shadow-warm ring-1 ring-primary/30">
               <img src={logoMark} alt="Deshi Digest logo" width={40} height={40} className="h-full w-full object-cover" />
             </span>
-            <span className="font-display text-xl font-semibold tracking-tight">Deshi Digest Docs</span>
+            <span className="truncate font-display text-lg font-semibold tracking-normal sm:text-xl">Deshi Digest Docs</span>
           </Link>
-          <nav className="flex items-center gap-2">
+          <nav className="flex shrink-0 items-center gap-2">
             <Link to="/">
               <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="h-4 w-4" /> Home
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Home</span>
               </Button>
             </Link>
-            <Link to={isLoggedIn ? "/dashboard" : "/login"}>
+            <a href="https://project-rae6k.vercel.app" target="_blank" rel="noopener noreferrer">
               <Button size="sm" className="gap-2 shadow-warm">
-                {isLoggedIn ? <LayoutDashboard className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                {isLoggedIn ? "Dashboard" : "Get Started"}
+                <Globe className="h-4 w-4" />
+                <span className="hidden sm:inline">Live App</span>
               </Button>
-            </Link>
+            </a>
           </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 pt-12">
-        {/* Hero Section */}
-        <section className="mb-16 text-center">
-          <div className="mx-auto mb-6 grid h-16 w-16 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-warm">
-            <BookOpen className="h-8 w-8" />
+      <main className="mx-auto max-w-6xl px-4 pt-10 sm:px-6 sm:pt-14">
+        <section className="grid gap-8 pb-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/70 px-3 py-1 text-xs font-semibold text-primary shadow-soft backdrop-blur">
+              <BookOpen className="h-3.5 w-3.5" />
+              Google Gemini API BuildFest 2026 Submission
+            </div>
+            <div className="space-y-4">
+              <h1 className="max-w-4xl font-display text-4xl font-semibold tracking-normal text-balance sm:text-6xl">
+                Deshi Digest / Nanumoni public documentation
+              </h1>
+              <p className="max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">
+                A culturally-aware nutrition companion for Bangladesh that combines local food knowledge, Gemini-powered
+                chat, plate analysis, user profiles, and Supabase-backed meal history.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/chat">
+                <Button className="gap-2 shadow-warm">
+                  <PlayCircle className="h-4 w-4" />
+                  Product Demo
+                </Button>
+              </Link>
+              <a href="#architecture">
+                <Button variant="outline" className="gap-2">
+                  <Network className="h-4 w-4" />
+                  Architecture
+                </Button>
+              </a>
+              <a href="#team">
+                <Button variant="outline" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Team
+                </Button>
+              </a>
+            </div>
           </div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-            Deshi Digest / Nanumoni
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            A warm, culturally intelligent nutrition companion for Bangladesh.
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <a 
-              href="https://project-rae6k.vercel.app" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full glass-soft px-4 py-1.5 text-sm font-medium hover:bg-white/20 transition-colors"
-            >
-              <Globe className="h-4 w-4 text-primary" /> project-rae6k.vercel.app <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
+
+          <aside className="glass rounded-lg p-5">
+            <div className="flex items-start gap-3">
+              <CalendarClock className="mt-1 h-5 w-5 shrink-0 text-primary" />
+              <div className="space-y-3">
+                <h2 className="font-display text-xl font-semibold tracking-normal">Access Control and Schedule</h2>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Docs are public for judging and showcase access. Admin-controlled scheduling is prepared through docsConfig.
+                </p>
+                <dl className="grid gap-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground">Public now</dt>
+                    <dd className="font-semibold">{docsConfig.isPublic ? "Yes" : "No"}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground">Show notice</dt>
+                    <dd className="font-semibold">{docsConfig.showScheduleNotice ? "Enabled" : "Hidden"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Prepared window</dt>
+                    <dd className="mt-1 font-semibold">{scheduleWindow}</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </aside>
         </section>
 
+        <div className="grid gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Live route", value: "/docs", icon: FileText },
+            { label: "Access", value: "Public", icon: LockKeyhole },
+            { label: "Core AI", value: "Gemini", icon: Sparkles },
+            { label: "Database", value: "Supabase", icon: Database },
+          ].map((item) => (
+            <div key={item.label} className="glass-soft rounded-lg p-4">
+              <item.icon className="mb-3 h-5 w-5 text-primary" />
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+              <p className="mt-1 font-display text-xl font-semibold tracking-normal">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
         <div className="space-y-16">
-          {/* Overview Section */}
-          <section id="overview" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Target className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Overview</h2>
+          <Section id="problem" icon={Target} eyebrow="Problem" title="Nutrition advice rarely fits daily Bangladeshi life">
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                "Generic diet apps often ignore rice, dal, local fish, vegetables, and everyday Bangladeshi meal patterns.",
+                "Many recommendations assume expensive imported foods instead of budget-aware, locally available choices.",
+                "People need safer guidance that explains tradeoffs without pretending to replace a doctor or dietitian.",
+              ].map((text) => (
+                <div key={text} className="glass rounded-lg p-5 text-sm leading-7 text-muted-foreground">
+                  {text}
+                </div>
+              ))}
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="glass rounded-3xl p-6">
-                <h3 className="font-display text-lg font-semibold mb-2">Problem Statement</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Generic nutrition advice often fails in Bangladesh because it ignores local food staples like rice, dal, and local fish, or suggests unaffordable "superfoods." This creates a gap between professional health advice and daily reality.
+          </Section>
+
+          <Section id="solution" icon={Sparkles} eyebrow="Solution" title="Nanumoni gives practical, culturally-aware guidance">
+            <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="glass rounded-lg p-6">
+                <h3 className="font-display text-xl font-semibold tracking-normal">Product Overview</h3>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                  Deshi Digest is a nutrition companion built around Bangladeshi food culture. It helps users chat about
+                  meals, analyze plates, track history, and receive practical suggestions grounded in local ingredients and
+                  responsible AI boundaries.
                 </p>
               </div>
-              <div className="glass rounded-3xl p-6 border-primary/20 bg-primary/5">
-                <h3 className="font-display text-lg font-semibold mb-2">The Solution</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Nanumoni — an AI nutrition guide that "speaks Deshi." Built on local food compositions (FCTB), she provides practical, budget-aware guidance in a warm, family-like tone that celebrates Bangladeshi food culture.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Tech Stack & Models */}
-          <section id="tech-stack" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Code2 className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Technology & AI</h2>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div className="glass rounded-3xl p-6">
-                <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Cpu className="h-5 w-5 text-spice" /> AI Models
-                </h3>
-                <ul className="space-y-3">
-                  {[
-                    { name: "Gemini 2.5 Flash-Lite", desc: "Core chat and meal guidance engine" },
-                    { name: "Gemini 2.5 Flash", desc: "Computer vision for plate analysis" },
-                    { name: "gemini-embedding-001", desc: "Semantic search and RAG embeddings" }
-                  ].map(model => (
-                    <li key={model.name} className="flex flex-col gap-0.5">
-                      <span className="text-sm font-semibold">{model.name}</span>
-                      <span className="text-xs text-muted-foreground">{model.desc}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="glass rounded-3xl p-6">
-                <h3 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-sage" /> Tech Stack
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    "React", "TanStack Start", "TypeScript", "Supabase", 
-                    "Vercel", "Gemini API", "AI SDK", "pgvector/RAG"
-                  ].map(tech => (
-                    <span key={tech} className="px-3 py-1 bg-muted/50 rounded-full text-xs font-medium">
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Data Sources */}
-          <section id="data-sources" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Database className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Data & Knowledge</h2>
-            </div>
-            <div className="glass rounded-3xl p-6 overflow-hidden">
-              <div className="grid gap-8 md:grid-cols-2">
-                <div className="space-y-4">
-                  <h3 className="font-display text-lg font-semibold">Knowledge Bases</h3>
-                  <ul className="space-y-3">
-                    {[
-                      "Curated Bangladeshi food knowledge base",
-                      "FCTB-based food context (icddr,b)",
-                      "Supabase user profile & meal history"
-                    ].map(source => (
-                      <li key={source} className="flex items-center gap-3 text-sm">
-                        <Sparkles className="h-4 w-4 text-primary shrink-0" /> {source}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-display text-lg font-semibold">External APIs</h3>
-                  <ul className="space-y-3">
-                    {[
-                      "USDA/FoodData Central via Data.gov",
-                      "RxNorm (Medication reference)",
-                      "WHO ICD (Medical classification)"
-                    ].map(api => (
-                      <li key={api} className="flex items-center gap-3 text-sm">
-                        <Microscope className="h-4 w-4 text-spice shrink-0" /> {api}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Architecture Summary */}
-          <section id="architecture" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <LayoutDashboard className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Architecture</h2>
-            </div>
-            <div className="relative glass rounded-3xl p-8 overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Code2 className="h-24 w-24" />
-              </div>
-              <div className="grid gap-6 md:grid-cols-4 text-center">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {[
-                  { title: "Frontend", body: "React UI via TanStack Start" },
-                  { title: "Compute", body: "Vercel / Edge Functions" },
-                  { title: "AI", body: "Gemini / AI SDK Core" },
-                  { title: "Persistence", body: "Supabase & pgvector" }
-                ].map((item, i) => (
-                  <div key={item.title} className="space-y-2">
-                    <div className="font-display font-semibold text-primary">{item.title}</div>
-                    <div className="text-xs text-muted-foreground">{item.body}</div>
-                    {i < 3 && <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 opacity-20">→</div>}
+                  "Warm conversational diet guidance",
+                  "Vision-based plate analysis",
+                  "Profile-aware recommendations",
+                  "Meal and chat history",
+                ].map((feature) => (
+                  <div key={feature} className="glass-soft flex items-center gap-3 rounded-lg p-4 text-sm font-semibold">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                    {feature}
                   </div>
                 ))}
               </div>
             </div>
-          </section>
+          </Section>
 
-          {/* Features */}
-          <section id="features" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Zap className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Key Features</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+          <Section id="demo" icon={PlayCircle} eyebrow="Product Demo" title="Working app areas available from the live build">
+            <div className="grid gap-4 md:grid-cols-3">
               {[
-                "Personalized Dashboard",
-                "Chat with Nanumoni",
-                "Analyze My Plate (Vision)",
-                "Meal History Tracking",
-                "Personalized Guidance",
-                "Budget-aware Tips"
-              ].map(feature => (
-                <div key={feature} className="glass-soft rounded-2xl p-4 text-sm font-medium flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  {feature}
-                </div>
+                { title: "Chat with Nanumoni", body: "Ask nutrition questions and receive contextual guidance.", to: "/chat" },
+                { title: "Analyze My Plate", body: "Upload or capture food images for Gemini vision-assisted estimates.", to: "/plates" },
+                { title: "Dashboard", body: "Review user profile context, meal history, and personalized summaries.", to: "/dashboard" },
+              ].map((demo) => (
+                <Link key={demo.title} to={demo.to} className="group glass rounded-lg p-5 transition hover:-translate-y-0.5 hover:shadow-warm">
+                  <h3 className="font-display text-xl font-semibold tracking-normal">{demo.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{demo.body}</p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                    Open route <ExternalLink className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
               ))}
             </div>
-          </section>
+          </Section>
 
-          {/* Responsible AI */}
-          <section id="responsible-ai" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Responsible AI</h2>
-            </div>
-            <div className="glass rounded-3xl p-6 border-sage/30 bg-sage/5">
-              <div className="flex flex-col md:flex-row gap-6 md:items-center">
-                <div className="space-y-4 flex-1">
-                  <p className="text-sm leading-relaxed text-muted-foreground italic">
-                    "Nanumoni is a guide, not a doctor. We prioritize safety and cultural sensitivity above all."
-                  </p>
-                  <ul className="grid gap-2 text-xs">
-                    <li>• No medical diagnosis or prescribing</li>
-                    <li>• Clear 'Not Medical Advice' disclaimers</li>
-                    <li>• Explainable reasoning for all suggestions</li>
-                    <li>• Culturally sensitive dietary adjustments</li>
-                  </ul>
-                </div>
-                <div className="shrink-0">
-                  <div className="rounded-2xl glass-strong p-4 text-center">
-                    <Heart className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Safety First</p>
-                  </div>
-                </div>
+          <Section id="tech-stack" icon={Code2} eyebrow="Tech Stack" title="Implementation stack">
+            <div className="glass rounded-lg p-5">
+              <div className="flex flex-wrap gap-2">
+                {techStack.map((tech) => (
+                  <span key={tech} className="rounded-md bg-background/65 px-3 py-2 text-sm font-semibold shadow-soft">
+                    {tech}
+                  </span>
+                ))}
               </div>
             </div>
-          </section>
+          </Section>
 
-          {/* Roadmap */}
-          <section id="roadmap" className="space-y-6 pb-12">
-            <div className="flex items-center gap-3">
-              <Milestone className="h-6 w-6 text-primary" />
-              <h2 className="font-display text-2xl font-semibold">Roadmap</h2>
-            </div>
-            <div className="space-y-4">
-              {[
-                { phase: "Phase 1", title: "Stronger local food database", status: "Ongoing" },
-                { phase: "Phase 2", title: "Guest mode & demo access", status: "Planned" },
-                { phase: "Phase 3", title: "Vendor & local market ecosystem", status: "Future" },
-                { phase: "Phase 4", title: "Future custom Nanumoni specialized model", status: "Long-term" }
-              ].map(step => (
-                <div key={step.title} className="glass-soft rounded-2xl p-4 flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs font-bold text-spice">{step.phase}</span>
-                    <span className="text-sm font-medium">{step.title}</span>
-                  </div>
-                  <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 bg-muted rounded-md opacity-70">
-                    {step.status}
-                  </span>
+          <Section id="ai-models" icon={Cpu} eyebrow="AI Models" title="Gemini model usage">
+            <div className="grid gap-4 md:grid-cols-3">
+              {aiModels.map((model) => (
+                <div key={model.name} className="glass rounded-lg p-5">
+                  <h3 className="font-display text-lg font-semibold tracking-normal">{model.name}</h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{model.use}</p>
                 </div>
               ))}
             </div>
-          </section>
+          </Section>
+
+          <Section id="data-sources" icon={Database} eyebrow="Data Sources" title="Food, profile, and external reference data">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="glass rounded-lg p-5">
+                <h3 className="font-display text-xl font-semibold tracking-normal">Internal and curated data</h3>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+                  <li>Curated Bangladeshi food knowledge base stored in application code and Supabase.</li>
+                  <li>FCTB-based food context and local nutrition references.</li>
+                  <li>User profile, chat threads, meal logs, and plate analysis records in Supabase with RLS.</li>
+                </ul>
+              </div>
+              <div className="glass rounded-lg p-5">
+                <h3 className="font-display text-xl font-semibold tracking-normal">External reference APIs</h3>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+                  <li>USDA FoodData Central for nutrition lookup support.</li>
+                  <li>RxNorm for medication reference context.</li>
+                  <li>WHO ICD references for medical classification context where appropriate.</li>
+                </ul>
+              </div>
+            </div>
+          </Section>
+
+          <Section id="architecture" icon={Network} eyebrow="Architecture" title="System architecture">
+            <div className="glass rounded-lg p-5 sm:p-6">
+              <div className="grid gap-3 text-center text-sm font-semibold lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] lg:items-center">
+                <div className="rounded-lg bg-background/70 p-4">Frontend React/TanStack</div>
+                <div className="hidden text-2xl text-primary lg:block">-&gt;</div>
+                <div className="rounded-lg bg-background/70 p-4">Vercel Server Functions</div>
+                <div className="hidden text-2xl text-primary lg:block">-&gt;</div>
+                <div className="rounded-lg bg-background/70 p-4">Gemini / Supabase / External APIs</div>
+                <div className="hidden text-2xl text-primary lg:block">-&gt;</div>
+                <div className="rounded-lg bg-background/70 p-4">Supabase Postgres + pgvector</div>
+              </div>
+              <pre className="mt-5 overflow-x-auto rounded-lg bg-foreground/90 p-4 text-xs leading-6 text-background">
+{`flowchart LR
+  A[Frontend React/TanStack] --> B[Vercel Server Functions]
+  B --> C[Gemini / Supabase / External APIs]
+  C --> D[Supabase Postgres + pgvector]`}
+              </pre>
+            </div>
+          </Section>
+
+          <Section id="data-flow" icon={Workflow} eyebrow="Data Flow" title="How a request moves through the product">
+            <div className="grid gap-4 md:grid-cols-4">
+              {[
+                ["1", "User submits chat, profile, or plate input from the React UI."],
+                ["2", "TanStack Start server functions attach auth context and validate request shape."],
+                ["3", "Gemini, Supabase, and selected external APIs provide model output and reference context."],
+                ["4", "Results and user history are returned to the UI and persisted through Supabase policies."],
+              ].map(([step, text]) => (
+                <div key={step} className="glass-soft rounded-lg p-5">
+                  <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">{step}</span>
+                  <p className="mt-4 text-sm leading-6 text-muted-foreground">{text}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section id="responsible-ai" icon={ShieldCheck} eyebrow="Responsible AI" title="Safety boundaries are explicit">
+            <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
+              <div className="glass rounded-lg p-5">
+                <h3 className="flex items-center gap-2 font-display text-xl font-semibold tracking-normal">
+                  <HeartPulse className="h-5 w-5 text-primary" />
+                  Health guidance limits
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                  Nanumoni gives nutrition education and practical meal guidance. It does not diagnose, prescribe, or replace
+                  qualified medical advice. Higher-risk health questions should be escalated to clinicians.
+                </p>
+              </div>
+              <div className="glass rounded-lg p-5">
+                <h3 className="font-display text-xl font-semibold tracking-normal">Mitigations in scope</h3>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+                  <li>Clear not-medical-advice language in user-facing AI workflows.</li>
+                  <li>Profile-aware but conservative recommendations.</li>
+                  <li>RLS-backed storage for user-specific data.</li>
+                  <li>Cultural sensitivity around Bangladeshi food patterns and affordability.</li>
+                </ul>
+              </div>
+            </div>
+          </Section>
+
+          <Section id="admin-roadmap" icon={LockKeyhole} eyebrow="Admin Editing" title="Admin controls roadmap">
+            <div className="glass rounded-lg p-5">
+              <p className="text-sm leading-7 text-muted-foreground">
+                A full WYSIWYG documentation editor is not implemented yet. The route is prepared for simple controlled
+                visibility through a config object, and the next admin milestone is an editable docs dashboard.
+              </p>
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                {[
+                  "Visibility toggle prepared through docsConfig.isPublic",
+                  "Scheduling config prepared with availableFrom and availableUntil",
+                  "Future editable docs dashboard planned",
+                ].map((item) => (
+                  <div key={item} className="glass-soft rounded-lg p-4 text-sm font-semibold">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Section>
+
+          <Section id="documentation-roadmap" icon={Search} eyebrow="Search and Export" title="Documentation roadmap">
+            <div className="glass rounded-lg p-5">
+              <p className="text-sm leading-7 text-muted-foreground">
+                Full documentation search and PDF export are planned but not shipped in this submission build. This page keeps
+                the scope honest by presenting the live documentation content directly instead of showing non-working controls.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="glass-soft rounded-lg p-4 text-sm font-semibold">Planned: full-text docs search</div>
+                <div className="glass-soft rounded-lg p-4 text-sm font-semibold">Planned: PDF export for submission packets</div>
+              </div>
+            </div>
+          </Section>
+
+          <Section id="roadmap" icon={Milestone} eyebrow="Roadmap" title="Product roadmap">
+            <div className="grid gap-3 md:grid-cols-2">
+              {roadmap.map((item) => (
+                <div key={item} className="glass-soft flex items-center gap-3 rounded-lg p-4 text-sm font-semibold">
+                  <Zap className="h-4 w-4 shrink-0 text-primary" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section id="team" icon={Users} eyebrow="Team" title="Team showcase">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {team.map((member) => (
+                <article key={member.name} className="glass flex min-h-44 flex-col rounded-lg p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-primary text-lg font-bold text-primary-foreground shadow-warm">
+                      {initials(member.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-display text-xl font-semibold tracking-normal">{member.name}</h3>
+                      <p className="mt-1 text-sm leading-5 text-muted-foreground">{member.role}</p>
+                    </div>
+                  </div>
+                  <div className="mt-auto pt-5 text-sm">
+                    {member.email ? (
+                      <a href={`mailto:${member.email}`} className="inline-flex items-center gap-2 font-semibold text-primary">
+                        <Mail className="h-4 w-4" />
+                        {member.email}
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        Email not provided
+                      </span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </Section>
+
+          <Section id="changelog" icon={FileText} eyebrow="Changelog" title="Recent project changes">
+            <div className="space-y-3">
+              {changelog.map((entry) => (
+                <article key={`${entry.date}-${entry.title}`} className="glass rounded-lg p-5">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <h3 className="font-display text-xl font-semibold tracking-normal">{entry.title}</h3>
+                    <time className="text-sm font-semibold text-primary">{entry.date}</time>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{entry.detail}</p>
+                </article>
+              ))}
+            </div>
+          </Section>
         </div>
       </main>
 
-      <footer className="mt-20 glass-nav border-t-0">
+      <footer className="mt-16 glass-nav border-t-0">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-foreground/75 sm:flex-row">
           <div className="flex items-center gap-2">
-            <img src={logoMark} alt="Logo" className="h-6 w-6 rounded-full" />
+            <img src={logoMark} alt="Deshi Digest logo" className="h-6 w-6 rounded-full" />
             <p>© {new Date().getFullYear()} Deshi Digest</p>
           </div>
-          <p className="italic">Built for the Google Gemini API BuildFest 2026</p>
+          <p className="text-center">Built for the Google Gemini API BuildFest 2026</p>
           <div className="flex gap-4">
-            <Link to="/" className="hover:text-primary transition-colors">Home</Link>
-            <Link to="/docs" className="font-bold text-primary underline underline-offset-4">Docs</Link>
+            <Link to="/" className="transition-colors hover:text-primary">
+              Home
+            </Link>
+            <Link to="/docs" className="font-bold text-primary underline underline-offset-4">
+              Docs
+            </Link>
           </div>
         </div>
       </footer>
