@@ -38,11 +38,11 @@ const docsConfig = {
 };
 
 const team = [
-  { name: "Safin", role: "Team Lead and Product Idea", email: "" },
-  { name: "Tasfiq Tasin", role: "Backend, Supabase, Gemini Integration", email: "" },
-  { name: "Mohammed Rayyanul", role: "Frontend and Application UI", email: "" },
-  { name: "Sakib Mahmud", role: "LLM Model Training Support", email: "" },
-  { name: "Nafisa", role: "Project Video", email: "" },
+  { name: "Safin", role: "Team Lead and Product Idea", email: "srrahman355@gmail.com" },
+  { name: "Tasfiq Tasin", role: "Backend, Supabase, Gemini Integration", email: "muhammadtasin18@gmail.com" },
+  { name: "Mohammed Rayyanul", role: "Frontend and Application UI", email: "hawkeyes1345@gmail.com" },
+  { name: "Sakib Mahmud", role: "LLM Model Training Support", email: "sakibmahmud1076@gmail.com" },
+  { name: "Nafisa", role: "Project Video", email: "nafisanazlee3@gmail.com" },
 ];
 
 const techStack = [
@@ -104,11 +104,11 @@ const changelog = [
 export const Route = createFileRoute("/docs")({
   head: () => ({
     meta: [
-      { title: "Documentation - Desi Diet / Nanumoni / Nanumoni" },
+      { title: "Documentation - Desi Diet / Nanumoni" },
       {
         name: "description",
         content:
-          "Public project documentation, pitch overview, architecture, AI model notes, team, and roadmap for Desi Diet / Nanumoni / Nanumoni.",
+          "Public project documentation, pitch overview, architecture, AI model notes, team, and roadmap for Desi Diet / Nanumoni.",
       },
     ],
   }),
@@ -206,7 +206,7 @@ function DocsPage() {
             </div>
             <div className="space-y-4">
               <h1 className="max-w-4xl font-display text-4xl font-semibold tracking-normal text-balance sm:text-6xl">
-                Desi Diet / Nanumoni / Nanumoni public documentation
+                Desi Diet / Nanumoni public documentation
               </h1>
               <p className="max-w-3xl text-base leading-8 text-muted-foreground sm:text-lg">
                 A culturally-aware nutrition companion for Bangladesh that combines local food knowledge, Gemini-powered
