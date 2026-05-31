@@ -7,12 +7,13 @@ import { lookupNutrition, lookupOpenFda, lookupRxNorm, lookupWhoIcd } from "@/li
 import {
   conditionTemplate,
   generalChatTemplate,
+  healthSafeFoodRecommendationTemplate,
   medicineTemplate,
   nutritionTemplate,
   sourceLabelForIntent,
   unknownTemplate,
 } from "@/lib/api-response-templates.server";
-import { generateFriendlyExplanation } from "@/lib/ai-gateway.server";
+import { generateChatResponse } from "@/lib/ai-gateway.server";
 
 type ChatRequestBody = { message?: unknown; threadId?: string; messages?: unknown; context?: unknown };
 
@@ -46,6 +47,10 @@ async function buildTemplateResponse(message: string, supabase: any) {
   if (intent === "condition") {
     const condition = await lookupWhoIcd(term);
     return { intent, term, template: conditionTemplate(condition), context: { conditionData: condition }, sourceLabel: condition.sourceLabel };
+  }
+
+  if (intent === "health_safe_food_recommendation") {
+    return { intent, term, template: healthSafeFoodRecommendationTemplate(message), context: {}, sourceLabel: "General health guidelines" };
   }
 
   if (intent === "meal_history") {
@@ -95,11 +100,34 @@ export const Route = createFileRoute("/api/chat")({
         const { data: thread } = await supabase.from("chat_threads").select("id, title").eq("id", threadId).maybeSingle();
         if (!thread) return Response.json({ error: "Thread not found" }, { status: 404 });
 
+        // Fetch user profile for context
+        const { data: userProfile } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+
         const built = await buildTemplateResponse(message, supabase);
-        const explanation = await generateFriendlyExplanation({ userMessage: message, template: built.template, context: built.context });
-        const assistantText = explanation.usedGemini
-          ? explanation.text
-          : built.template + (explanation.fallbackReason ? "\n\nAI explanation is temporarily limited, but here are the facts from the database." : "");
+        
+        // Distinguish simple greetings from real questions
+        const isSimpleGreeting = /^(hi|hello|hey|salam|assalamu|assalamu alaikum|nanu|hola|namaste)$/i.test(message.toLowerCase());
+        const isVeryShort = message.length < 3;
+
+        let assistantText: string;
+        let usedGemini = false;
+        let fallbackReason: string | undefined;
+
+        if (isSimpleGreeting || isVeryShort) {
+          assistantText = built.template;
+        } else {
+          const chatResponse = await generateChatResponse({ 
+            userMessage: message, 
+            template: built.template, 
+            context: built.context,
+            userProfile
+          });
+          usedGemini = chatResponse.usedGemini;
+          assistantText = usedGemini
+            ? chatResponse.text
+            : built.template + (chatResponse.fallbackReason ? "\n\nAI explanation is temporarily limited, but here are the facts from the database." : "");
+          fallbackReason = chatResponse.fallbackReason;
+        }
 
         const userParts: UiPart[] = [{ type: "text", text: message }];
         const assistantParts: UiPart[] = [{ type: "text", text: assistantText }];
@@ -117,15 +145,26 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const assistantRow = inserted?.find((row: any) => row.role === "assistant");
+        
+        // Final source label logic
+        let sourceLabel = built.sourceLabel;
+        if (usedGemini) {
+          sourceLabel = built.context && Object.keys(built.context).length > 0
+            ? `${built.sourceLabel} + Gemini conversation`
+            : "Gemini conversation";
+        } else if (fallbackReason) {
+          sourceLabel = "Template fallback response";
+        }
+
         return Response.json({
           id: assistantRow?.id || crypto.randomUUID(),
           role: "assistant",
           parts: assistantParts,
           text: assistantText,
           intent: built.intent,
-          sourceLabel: built.sourceLabel,
-          geminiUsed: explanation.usedGemini,
-          fallbackReason: explanation.fallbackReason,
+          sourceLabel: sourceLabel,
+          geminiUsed: usedGemini,
+          fallbackReason: fallbackReason,
         });
       },
     },

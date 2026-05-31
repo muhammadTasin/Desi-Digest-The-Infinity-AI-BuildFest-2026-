@@ -78,7 +78,30 @@ export function conditionTemplate(result: ConditionLookupResult) {
   ].join("\n");
 }
 
+export function healthSafeFoodRecommendationTemplate(message: string) {
+  const text = message.toLowerCase();
+  let advice = "Bujhlam — apni healthy and budget-friendly food option chan. ";
+
+  if (text.includes("mangsho") || text.includes("meat")) {
+    advice += "Mangsho khete iccha korle skinless chicken ba local fish best choice. Beef/mutton kom khawa better, especially heart ba cholesterol concern thakle. Processed meat like sausage, salami, nuggets avoid korben because sodium beshi thake. ";
+  } else {
+    advice += "Healthy option er jonno dim (egg), dal, ba local fish thakte pare budget er moddhe. ";
+  }
+
+  advice += "\n\nGuidelines:\n- Ranna korben kom tel (low oil) and kom lobon (low salt) diye.\n- Diabetes ba heart er jonno portion control important.\n- Processed food avoid kora safer choice.";
+  advice += "\n\nNote: Eta general guidance, not medical advice. Doctor ba dietitian er poramorsho nawa better.";
+  advice += "\nTemplate fallback response.";
+  return advice;
+}
+
 export function generalChatTemplate(message: string) {
+  const text = message.toLowerCase().trim();
+  if (/^(hi|hello|hey|salam|assalamu|assalamu alaikum|hola|namaste)$/.test(text)) {
+    return "Assalamu Alaikum! Ami Nanumoni. Ami apnake Deshi khabar, nutrition, and general health advice diye shahajjo korte pari. Ajke apnar jonno ki korte pari?";
+  }
+  if (/nanu/i.test(text)) {
+    return "Ji, ami Nanumoni! Bolun, apnar nutrition ba diet niye ki janar ache?";
+  }
   if (/breakfast/i.test(message)) {
     return "For a simple Deshi breakfast, try atta ruti or a small bowl of bhat with egg, dal, or chola, plus fruit if available. Keep it balanced: carb + protein + fiber.\nTemplate fallback response.";
   }
@@ -86,12 +109,13 @@ export function generalChatTemplate(message: string) {
 }
 
 export function unknownTemplate() {
-  return "I could not confidently classify that. Try asking about a food, medicine, health condition, or general meal idea.\nTemplate fallback response.";
+  return "I'm not exactly sure about that, but I can try to help with general Deshi nutrition or meal ideas. Could you clarify your question?\nTemplate fallback response.";
 }
 
 export function sourceLabelForIntent(intent: MessageIntent) {
   if (intent === "nutrition") return "Source: nutrition database";
   if (intent === "medicine") return "Source: RxNorm/openFDA";
   if (intent === "condition") return "Source: WHO ICD";
+  if (intent === "health_safe_food_recommendation") return "Source: General health guidelines";
   return "Template fallback response";
 }

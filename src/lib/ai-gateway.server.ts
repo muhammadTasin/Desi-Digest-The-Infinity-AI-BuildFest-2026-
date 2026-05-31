@@ -27,34 +27,52 @@ export function createGeminiProvider() {
 
 
 
-export async function generateFriendlyExplanation(input: {
+export async function generateChatResponse(input: {
   userMessage: string;
   template: string;
   context?: unknown;
+  userProfile?: unknown;
 }): Promise<{ text: string; usedGemini: boolean; fallbackReason?: string }> {
   const quota = tryConsumeGeminiQuota();
   if (!quota.allowed) return { text: input.template, usedGemini: false, fallbackReason: quota.reason || "Gemini unavailable" };
 
   try {
-    logAiModelUse("explanation", CHAT_MODEL_NAME);
+    logAiModelUse("chat", CHAT_MODEL_NAME);
     const result = await generateText({
       model: createGeminiProvider()(CHAT_MODEL_NAME),
-      system: "You are Nanumoni, a warm Bangladeshi nutrition assistant. Rewrite the provided factual template in friendly, concise language. Do not add new nutrition facts, medicine facts, disease facts, calculations, warnings, or lookup results. Preserve source labels and fallback labels exactly when present.",
+      system: `You are Nanumoni, a warm Bangladeshi nutrition assistant.
+- Reply in the user's language style: Bangla, English, or Banglish (mixed Bangla-English).
+- Give practical, budget-aware food advice.
+- Prefer Bangladeshi/desi food examples (e.g., local fish, vegetables, dal, rice).
+- Keep advice safe and avoid medical diagnosis.
+- For diabetes/heart/BP/cholesterol questions, explicitly state this is "general guidance, not medical advice."
+- Do not claim any food prevents diabetes or cures disease. Use "diabetes-friendly" or "lower risk choice".
+- Recommend seeing a doctor or dietitian for serious medical conditions.
+- If factual database data is provided in context, use it accurately.
+- If no database data is provided, still answer with general safe nutrition advice.
+- Preserve source labels and fallback labels when present in the factual template.`,
       messages: [
         {
           role: "user",
-          content: "User message: " + input.userMessage + "\n\nRetrieved data/context JSON:\n" + JSON.stringify(input.context ?? {}) + "\n\nFactual template to rewrite:\n" + input.template,
+          content: `User Profile: ${JSON.stringify(input.userProfile ?? {})}
+User message: ${input.userMessage}
+
+Retrieved database context:
+${JSON.stringify(input.context ?? {})}
+
+Factual template/fallback:
+${input.template}`,
         },
       ],
     });
     const text = result.text?.trim();
-    if (!text) return { text: input.template, usedGemini: false, fallbackReason: "Gemini returned an empty explanation" };
-    return { text: text + "\n\nAI explanation generated from retrieved data", usedGemini: true };
+    if (!text) return { text: input.template, usedGemini: false, fallbackReason: "Gemini returned an empty response" };
+    return { text: text + "\n\nAI conversation generated from retrieved data", usedGemini: true };
   } catch (error) {
     return {
       text: input.template,
       usedGemini: false,
-      fallbackReason: error instanceof Error ? error.message : "Gemini explanation failed",
+      fallbackReason: error instanceof Error ? error.message : "Gemini chat failed",
     };
   }
 }
