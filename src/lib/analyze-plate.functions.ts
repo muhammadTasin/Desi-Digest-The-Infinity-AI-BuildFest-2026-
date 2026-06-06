@@ -4,7 +4,7 @@ import { z } from "zod";
 import { ALLOWED_IMAGE_MIME_TYPES, normalizeImageMimeType, parseImageDataUrl } from "@/lib/image-mime";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Profile, computeBMI, computeTDEE } from "@/lib/profile.functions";
-import { aggregateNutrition, enrichFoodsWithNutrition } from "@/lib/nutrition-data.server";
+import { aggregateNutrition, enrichFoodsWithNutrition, type EnrichedFood } from "@/lib/nutrition-data.server";
 import { lookupEdamamImageFood } from "@/lib/external-api.server";
 
 const InputSchema = z
@@ -20,7 +20,7 @@ export type PlateAnalysis = {
   detected: boolean;
   blurry: boolean;
   nanumoniMessage: string;
-  dishes: any[];
+  dishes: EnrichedFood[];
   nutrition: ReturnType<typeof aggregateNutrition>;
   healthScore: number;
   healthExplanation: string;
