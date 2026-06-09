@@ -1,5 +1,5 @@
 import { generateOpenRouterObject } from "./openrouter-chat.server";
-import { type SmartHealthNudge, generateSmartNudge } from "./smart-health-nudge";
+import { type SmartHealthNudge, generateSmartNudge, SMART_NUDGE_IMAGE_KINDS } from "./smart-health-nudge";
 import { verifyNudgePlan3 } from "./smart-health-nudge-verifier.server";
 import { type MealLog } from "./meals.functions";
 import { getPersistentNudgeImage } from "./nudge-image-service.server";
@@ -15,7 +15,7 @@ const NudgeGenerationSchema = z.object({
   benefitEn: z.string(),
   actionLabelBn: z.string(),
   actionLabelEn: z.string(),
-  imageKind: z.enum(["lal-shak", "dal", "water", "egg", "fish", "vegetables", "rice-balance", "generic"]),
+  imageKind: z.enum(SMART_NUDGE_IMAGE_KINDS),
   priority: z.enum(["low", "medium", "high"]),
   reasonBn: z.string(),
   reasonEn: z.string(),
@@ -29,7 +29,7 @@ const NudgeGenerationSchema = z.object({
     suggestionEn: z.string(),
     benefitBn: z.string(),
     benefitEn: z.string(),
-    imageKind: z.enum(["lal-shak", "dal", "water", "egg", "fish", "vegetables", "rice-balance", "generic"])
+    imageKind: z.enum(SMART_NUDGE_IMAGE_KINDS)
   })),
   checkInQuestionBn: z.string(),
   checkInQuestionEn: z.string(),
@@ -64,12 +64,24 @@ CRITICAL SAFETY RULES:
 - NEVER use phrases like "Apnar diabetes ache", "apnar rog dhora porse".
 - NEVER expose AI terms like "Gemini", "OpenRouter", "API", or "model".
 - MUST use safe language: "Apnar meal pattern theke mone hocche...", "may help", "can support", "consider".
+- For natural items like kalo-zira, methi, honey, ginger: NEVER say they cure diseases or are medicine. Say "Kalo zira traditional food habit hisebe use hoy" or "Methi balanced diet er part hote pare."
 - The 'disclaimerEn' MUST EXACTLY BE: "General nutrition guidance — not medical advice."
 - The 'disclaimerBn' MUST EXACTLY BE: "General nutrition guidance — not medical advice. Doctor er poramorsho nin."
 - The 'sevenDayPlan' MUST contain exactly 7 items (one for each day).
 - Provide 'checkInQuestionBn' (Bangla) and 'checkInQuestionEn' (English) asking if they followed today's tip. The question MUST be encouraging and non-shaming. Example: "Dadu bhai, kalke ki lal shak kheyecho?"
 - Provide content in BOTH Bangla (Bn) and English (En). Use simple, friendly Bangla.
-- Output strict JSON only.`;
+- Output strict JSON only.
+
+IMAGE SELECTION:
+Choose 'imageKind' from these groups:
+- Leafy greens: lal-shak, palong-shak, pui-shak, kolmi-shak, spinach, leafy-greens
+- Vegetables: lau, begun, potol, korola, dherosh, tomato, cucumber, mixed-vegetables, vegetables
+- Fruits: banana, apple, guava, papaya, mango, orange, dates, pomegranate, fruits
+- Protein: egg, fish, chicken, beef, dal, masoor-dal, lentil, milk, yogurt, paneer
+- Staples: rice, roti, oats, brown-rice, rice-balance, khichuri
+- Natural/Spices: kalo-zira, methi, honey, turmeric, ginger, garlic, chia-seed, almond
+- Hydration: water, lemon-water, tea, green-tea
+- Generic: generic, balanced-meal, healthy-snack`;
 
   const userContext = {
     profileSummary: {

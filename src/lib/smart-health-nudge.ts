@@ -1,6 +1,50 @@
 import { type MealLog } from "./meals.functions";
 
-export type NudgeImageKind = "lal-shak" | "dal" | "water" | "egg" | "fish" | "vegetables" | "rice-balance" | "generic";
+export const SMART_NUDGE_IMAGE_KINDS = [
+  // Leafy greens
+  "lal-shak", "palong-shak", "pui-shak", "kolmi-shak", "data-shak", "lau-shak", "kochu-shak", "methi-shak", "spinach", "leafy-greens",
+  // Vegetables
+  "lau", "begun", "potol", "korola", "dherosh", "tomato", "cucumber", "carrot", "cabbage", "cauliflower", "beans", "pumpkin", "papaya-green", "potato", "sweet-potato", "onion", "garlic", "ginger", "lemon", "green-chili", "mixed-vegetables", "vegetables",
+  // Fruits
+  "banana", "apple", "guava", "papaya", "mango", "orange", "malta", "pineapple", "watermelon", "coconut", "dates", "jackfruit", "litchi", "amla", "bel", "pomegranate", "fruits",
+  // Staples
+  "rice", "brown-rice", "rice-balance", "roti", "atta", "paratha", "chira", "muri", "oats", "bread", "suji", "khichuri",
+  // Pulses
+  "dal", "masoor-dal", "mug-dal", "chola", "boot", "lentil", "beans-legume", "soybean",
+  // Protein
+  "egg", "boiled-egg", "chicken", "fish", "small-fish", "rui-fish", "katla-fish", "hilsa", "tuna", "canned-tuna", "beef", "mutton", "shrimp",
+  // Dairy
+  "milk", "yogurt", "tok-doi", "paneer", "cheese",
+  // Nuts / natural
+  "kalo-zira", "methi", "honey", "turmeric", "cinnamon", "black-pepper", "cumin", "coriander", "sesame", "peanut", "almond", "chia-seed", "flaxseed", "mustard-oil", "olive-oil",
+  // Drinks
+  "water", "lemon-water", "coconut-water", "green-tea", "tea", "milk-tea",
+  // Generic
+  "balanced-meal", "healthy-snack", "generic"
+] as const;
+
+export type NudgeImageKind = typeof SMART_NUDGE_IMAGE_KINDS[number];
+
+export function normalizeImageKind(input: string): NudgeImageKind {
+  const normalized = input.toLowerCase().replace(/_/g, "-");
+  if (SMART_NUDGE_IMAGE_KINDS.includes(normalized as any)) {
+    return normalized as NudgeImageKind;
+  }
+  
+  // Fallbacks by category mapping
+  if (normalized.includes("shak") || normalized.includes("spinach")) return "leafy-greens";
+  if (normalized.includes("fish") || normalized.includes("mach")) return "fish";
+  if (normalized.includes("dal") || normalized.includes("lentil") || normalized.includes("bean")) return "dal";
+  if (normalized.includes("water") || normalized.includes("pani")) return "water";
+  if (normalized.includes("egg") || normalized.includes("dim")) return "egg";
+  if (normalized.includes("chicken") || normalized.includes("beef") || normalized.includes("meat")) return "chicken";
+  if (normalized.includes("milk") || normalized.includes("doi") || normalized.includes("yogurt")) return "milk";
+  if (normalized.includes("rice") || normalized.includes("bhat")) return "rice";
+  if (normalized.includes("fruit")) return "fruits";
+  if (normalized.includes("veg") || normalized.includes("shobji")) return "vegetables";
+  
+  return "generic";
+}
 
 export type SmartHealthNudgePlanItem = {
   day: number;

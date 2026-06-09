@@ -1,4 +1,4 @@
-import { type SmartHealthNudge, validateNudgeSafety, sanitizeNudgeText } from "./smart-health-nudge";
+import { type SmartHealthNudge, validateNudgeSafety, sanitizeNudgeText, SMART_NUDGE_IMAGE_KINDS, normalizeImageKind } from "./smart-health-nudge";
 import { generateOpenRouterObject } from "./openrouter-chat.server";
 import { z } from "zod";
 
@@ -15,7 +15,7 @@ const VerifierSchema = z.object({
     benefitEn: z.string(),
     actionLabelBn: z.string(),
     actionLabelEn: z.string(),
-    imageKind: z.enum(["lal-shak", "dal", "water", "egg", "fish", "vegetables", "rice-balance", "generic"]),
+    imageKind: z.string(), // accept any string, we'll normalize it
     priority: z.enum(["low", "medium", "high"]),
     reasonBn: z.string(),
     reasonEn: z.string(),
@@ -29,7 +29,7 @@ const VerifierSchema = z.object({
       suggestionEn: z.string(),
       benefitBn: z.string(),
       benefitEn: z.string(),
-      imageKind: z.enum(["lal-shak", "dal", "water", "egg", "fish", "vegetables", "rice-balance", "generic"]),
+      imageKind: z.string() // accept any string, we'll normalize it
     })).optional(),
     checkInQuestionBn: z.string().optional(),
     checkInQuestionEn: z.string().optional(),
@@ -42,6 +42,15 @@ export async function verifyNudgePlan3(generatedNudge: SmartHealthNudge, fallbac
   // 1. Initial local deterministic validation
   let nudgeToVerify = { ...generatedNudge };
   
+  // Normalize image kinds immediately
+  nudgeToVerify.imageKind = normalizeImageKind(nudgeToVerify.imageKind);
+  if (nudgeToVerify.sevenDayPlan) {
+    nudgeToVerify.sevenDayPlan = nudgeToVerify.sevenDayPlan.map(p => ({
+      ...p,
+      imageKind: normalizeImageKind(p.imageKind)
+    }));
+  }
+
   // Sanitize text fields
   nudgeToVerify.titleBn = sanitizeNudgeText(nudgeToVerify.titleBn);
   nudgeToVerify.titleEn = sanitizeNudgeText(nudgeToVerify.titleEn);
@@ -85,6 +94,7 @@ CRITICAL RULES:
 - MUST NOT contain any diagnosis (e.g. "you have diabetes", "your ulcer").
 - MUST NOT claim to cure or treat any disease.
 - MUST NOT contain names of AI providers, models, or APIs (no "Gemini", "OpenRouter", "AI").
+- Natural foods (honey, kalo-zira, ginger, garlic, turmeric) MUST NOT be presented as medicine or cures.
 - MUST include the disclaimer: "General nutrition guidance — not medical advice."
 - The sevenDayPlan MUST contain exactly 7 items if present.
 
@@ -95,8 +105,19 @@ Analyze the nudge and return JSON. If unsafe, provide a fixed safe version in "f
       const result = await generateOpenRouterObject(VerifierSchema, systemPrompt, userPrompt);
       
       if (!result.safe) {
-        if (result.fixedNudge && validateNudgeSafety(result.fixedNudge as SmartHealthNudge)) {
-          return { ...result.fixedNudge, id: generatedNudge.id } as SmartHealthNudge;
+        if (result.fixedNudge) {
+           // Normalize image kinds coming back from the fixed nudge
+           result.fixedNudge.imageKind = normalizeImageKind(result.fixedNudge.imageKind);
+           if (result.fixedNudge.sevenDayPlan) {
+             result.fixedNudge.sevenDayPlan = result.fixedNudge.sevenDayPlan.map(p => ({
+               ...p,
+               imageKind: normalizeImageKind(p.imageKind)
+             }));
+           }
+           
+           if (validateNudgeSafety(result.fixedNudge as SmartHealthNudge)) {
+              return { ...result.fixedNudge, id: generatedNudge.id } as SmartHealthNudge;
+           }
         }
         console.warn("[Nudge Verifier] AI Verification failed and no safe fix provided.");
         return fallbackNudge;
