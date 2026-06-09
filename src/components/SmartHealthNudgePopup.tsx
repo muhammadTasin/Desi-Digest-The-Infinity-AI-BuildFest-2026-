@@ -70,6 +70,9 @@ export function SmartHealthNudgePopup({ profile, recentMeals, isDemo = false }: 
 
   useEffect(() => {
     if (nudge && isVisible) {
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[nudge image render]", nudge.imageUrl);
+      }
       recordNudgeShown(nudge.id);
       initOrUpdateHabitState(nudge);
     }
@@ -113,7 +116,7 @@ export function SmartHealthNudgePopup({ profile, recentMeals, isDemo = false }: 
               <img 
                 src={nudge.imageUrl} 
                 alt={title} 
-                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                className="h-full w-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                   // Force icon fallback
