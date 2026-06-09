@@ -353,7 +353,10 @@ const UNSAFE_WORDS = [
   "apnar diabetes ache", "apnar rog ache", "rog dhora porse", 
   "medical treatment", "clinically proven", 
   "gemini", "openrouter", "edamam", "api", "provider", "model", 
-  "fallback", "cache", "quota", "429", "404"
+  "fallback", "cache", "quota", "429", "404",
+  "medicine", "ulcer-safe", "diabetes-safe", "disease cure",
+  "blood pressure cure", "gastric cure", "doctor-approved cure",
+  "replaces medication"
 ];
 
 export function sanitizeNudgeText(text: string): string {

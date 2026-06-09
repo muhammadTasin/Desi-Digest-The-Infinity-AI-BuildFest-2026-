@@ -39,6 +39,19 @@ const PLAN_FALLBACK_ICONS: Record<string, React.ReactNode> = {
   "generic": <Info className="h-6 w-6 text-primary" />,
 };
 
+function PlanItemImage({ imageUrl, imageKind, alt }: { imageUrl?: string; imageKind: string; alt: string }) {
+  const [error, setError] = useState(false);
+  
+  useEffect(() => {
+    setError(false);
+  }, [imageUrl]);
+
+  if (imageUrl && !error) {
+    return <img src={imageUrl} alt={alt} className="object-cover w-full h-full" onError={() => setError(true)} />;
+  }
+  return <>{PLAN_FALLBACK_ICONS[imageKind] || PLAN_FALLBACK_ICONS.generic}</>;
+}
+
 export function SmartHealthNudgePopup({ profile, recentMeals, isDemo = false }: SmartHealthNudgePopupProps) {
   const fetchNudge = useServerFn(getSmartHealthNudgeFn);
   
@@ -68,9 +81,15 @@ export function SmartHealthNudgePopup({ profile, recentMeals, isDemo = false }: 
 
   const nudge = aiNudge || localNudge;
 
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [nudge?.imageUrl]);
+
   useEffect(() => {
     if (nudge && isVisible) {
-      if (process.env.NODE_ENV === "development") {
+      if (import.meta.env.DEV) {
         console.debug("[nudge image render]", nudge.imageUrl);
       }
       recordNudgeShown(nudge.id);
@@ -112,21 +131,12 @@ export function SmartHealthNudgePopup({ profile, recentMeals, isDemo = false }: 
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar pb-6">
           {/* Top Image Section */}
           <div className="relative h-64 w-full bg-muted flex items-center justify-center overflow-hidden">
-            {nudge.imageUrl ? (
+            {nudge.imageUrl && !imageError ? (
               <img 
                 src={nudge.imageUrl} 
                 alt={title} 
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  // Force icon fallback
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const fallback = document.createElement('div');
-                    fallback.className = 'text-primary flex items-center justify-center h-full w-full bg-primary/5';
-                    parent.appendChild(fallback);
-                  }
-                }}
+                onError={() => setImageError(true)}
               />
             ) : (
               <div className="text-primary flex items-center justify-center h-full w-full bg-primary/5">
@@ -231,11 +241,7 @@ export function SmartHealthNudgePopup({ profile, recentMeals, isDemo = false }: 
                     {nudge.sevenDayPlan.map((day, idx) => (
                       <div key={idx} className="flex gap-4 p-3 rounded-2xl hover:bg-background/50 transition-colors border border-transparent hover:border-border/40">
                         <div className="flex shrink-0 items-center justify-center h-12 w-12 rounded-xl bg-background shadow-soft border border-border/40 overflow-hidden">
-                           {day.imageUrl ? (
-                              <img src={day.imageUrl} alt={lang === "bn" ? day.titleBn : day.titleEn} className="object-cover w-full h-full" />
-                            ) : (
-                              PLAN_FALLBACK_ICONS[day.imageKind] || PLAN_FALLBACK_ICONS.generic
-                            )}
+                           <PlanItemImage imageUrl={day.imageUrl} imageKind={day.imageKind} alt={lang === "bn" ? day.titleBn : day.titleEn} />
                         </div>
                         <div className="flex-1 space-y-1">
                           <div className="flex justify-between items-center">
