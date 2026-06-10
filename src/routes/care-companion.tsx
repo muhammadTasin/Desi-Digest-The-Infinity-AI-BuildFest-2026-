@@ -34,9 +34,11 @@ import {
   Activity,
   User,
   ShieldCheck,
-  ListTodo
+  ListTodo,
+  Utensils
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { buildWhatsAppShareUrl, copyShareSummary } from "@/lib/share-summary";
 import logoMark from "@/assets/logo-mark.png";
 
@@ -52,95 +54,116 @@ export const Route = createFileRoute("/care-companion")({
 
 function parseCustomQuery(queryText: string): Omit<CareCompanionQuestion, "id" | "confidence"> {
   const text = queryText.toLowerCase();
-  
-  if (text.includes("oil") || text.includes("fried") || text.includes("bhaji") || text.includes("puri") || text.includes("singara") || text.includes("samosa") || text.includes("paratha") || text.includes("fat") || text.includes("vaji") || text.includes("তেল") || text.includes("তেলাক্ত")) {
+
+  // 1. Heart Health Concern
+  if (text.includes("heart") || text.includes("attack") || text.includes("cardiac") || text.includes("hridoy") || text.includes("ridoy") || text.includes("বুক ব্যথা") || text.includes("হার্ট") || text.includes("অ্যাটাক") || text.includes("jeno heart attack na hoi")) {
+    return {
+      question: queryText,
+      category: "heart_health",
+      whyThisMatters: "Your question mentioned heart health or heart attack. Cardiovascular wellness is heavily influenced by fat quality, sodium intake, and fiber. Monitoring these patterns is a key clinical discussion point.",
+      basedOn: ["Custom health query", "Heart health keywords"],
+      safeAnswer: "Heart attack prevention is a complex medical topic. Desi Digest cannot diagnose risk or guarantee prevention. Based on available meal logs, you can use this as a doctor/dietitian discussion guide: ask about fried/oily foods, salt intake, rice portion, and fiber from shak/vegetables/dal.",
+      bangladeshiFoodExamples: ["Lower-oil cooking (bhuna with less oil)", "Choosing fish or skinless chicken over fatty beef/mutton", "Adding dal, shak, and seasonal vegetables to every meal"],
+      whatToTrackNext: ["Blood pressure with a professional", "Frequency of deep-fried or oily snacks", "Salty snacks and processed food consumption", "Rice portion sizes"],
+      doctorDiscussionPrompt: "How can I adjust my usual Bangladeshi meals to support my heart-health goals, and what measurements like cholesterol or BP should I track with you?"
+    };
+  }
+
+  // 2. Blood Pressure Concern
+  if (text.includes("bp") || text.includes("pressure") || text.includes("hypertension") || text.includes("প্রেসার") || text.includes("bp komanor")) {
+    return {
+      question: queryText,
+      category: "blood_pressure",
+      whyThisMatters: "Blood pressure is highly sensitive to sodium (salt) intake and overall metabolic health. Reducing hidden salt in traditional foods is a common recommendation.",
+      basedOn: ["Custom health query", "Blood pressure keywords"],
+      safeAnswer: "Managing blood pressure requires professional monitoring. Nutrition-wise, the focus is often on reducing sodium from added salt, pickles (achar), and processed snacks while increasing potassium from vegetables and fruits.",
+      bangladeshiFoodExamples: ["Using fresh lemon (lebu) and herbs for flavor instead of salt", "Avoiding commercial pickles and shutki", "Increasing servings of seasonal vegetables and fruits"],
+      whatToTrackNext: ["Blood pressure readings (at home or by professional)", "Frequency of high-sodium items like shutki or achar", "Added table salt use"],
+      doctorDiscussionPrompt: "What is my target blood pressure, and how much daily sodium is safe for my condition given my usual deshi diet?"
+    };
+  }
+
+  // 3. Blood Sugar / Diabetes Concern
+  if (text.includes("sugar") || text.includes("diabetes") || text.includes("diabetic") || text.includes("ডায়াবেটিস") || text.includes("সুগার") || text.includes("sugar control")) {
+    return {
+      question: queryText,
+      category: "blood_sugar",
+      whyThisMatters: "Blood sugar management is closely tied to the amount and type of carbohydrates consumed, especially the portion of white rice or sweets in deshi meals.",
+      basedOn: ["Custom health query", "Blood sugar keywords"],
+      safeAnswer: "Desi Digest cannot manage diabetes or diagnose sugar levels. For discussion with a professional, focus on how rice portions and sugary snacks affect your energy and sugar readings.",
+      bangladeshiFoodExamples: ["Controlling white rice portion (e.g., 1-1.5 cups)", "Switching to lal atta roti", "Adding high-fiber dal and shak to balance carbohydrate absorption"],
+      whatToTrackNext: ["Blood sugar readings as advised by a doctor", "Rice and sweet portion sizes", "Daily fiber intake from lentils and vegetables"],
+      doctorDiscussionPrompt: "How should I adjust my rice and roti portions to better manage my blood sugar, and are there specific deshi fruits I should limit?"
+    };
+  }
+
+  // 4. Gastric / Acidity Concern
+  if (text.includes("gastric") || text.includes("acidity") || text.includes("ulcer") || text.includes("gas") || text.includes("গ্যাস্ট্রিক") || text.includes("gastric hole")) {
+    return {
+      question: queryText,
+      category: "gastric",
+      whyThisMatters: "Gastric discomfort is often triggered by highly spicy, oily, or acidic foods, as well as meal timing and portion sizes.",
+      basedOn: ["Custom health query", "Gastric keywords"],
+      safeAnswer: "Gastric issues can range from mild acidity to ulcers. Discuss your trigger foods and meal timing with a doctor. Milder preparation methods can often provide comfort without losing traditional tastes.",
+      bangladeshiFoodExamples: ["Milder curries with less chili and oil", "Soft rice or khichuri", "Stewed papaya (pepe) or bottle gourd (lau) for easy digestion"],
+      whatToTrackNext: ["Specific triggers (e.g., extra chili, late night meals)", "Time gap between dinner and sleep"],
+      doctorDiscussionPrompt: "Which specific spices or cooking methods in my usual diet are likely to trigger my gastric symptoms, and what are safe alternatives?"
+    };
+  }
+
+  // 5. Oily / Fried Food Concern
+  if (text.includes("oil") || text.includes("fried") || text.includes("bhaji") || text.includes("puri") || text.includes("singara") || text.includes("samosa") || text.includes("paratha") || text.includes("vaji") || text.includes("তেল") || text.includes("তেলাক্ত")) {
     return {
       question: queryText,
       category: "fried_oily",
       whyThisMatters: "Oily or fried foods are highly calorie-dense and common in Bangladeshi cooking, which may impact heart health or digestion.",
-      basedOn: ["Custom search query", "Oily/fried food keywords"],
-      safeAnswer: "Based on available meal logs, oily or fried foods may raise your overall calorie and fat intake. It may be worth discussing cooking methods or portion balance with your doctor or dietitian. You do not need to label these foods as forbidden, but focus on portion moderation or air-frying swaps.",
-      bangladeshiFoodExamples: ["Air-fried or baked snacks instead of deep-fried puri/singara", "Reducing oil used in curries", "Boiled or poached eggs instead of deep-fried egg bhaji"],
-      whatToTrackNext: ["Number of fried items eaten per week", "Tablespoons of soybean/mustard oil used daily"],
+      basedOn: ["Custom query", "Oily/fried food keywords"],
+      safeAnswer: "Based on available meal logs, oily or fried foods may raise your overall calorie and fat intake. It may be worth discussing cooking methods or portion balance with your doctor or dietitian.",
+      bangladeshiFoodExamples: ["Air-fried or baked snacks instead of deep-fried items", "Reducing oil used in bhuna or curries", "Boiled eggs instead of fried egg bhaji"],
+      whatToTrackNext: ["Number of fried items eaten per week", "Tablespoons of oil used in home cooking"],
       doctorDiscussionPrompt: "How can I balance fried foods in my diet, and what are some lower-oil traditional recipes I can use?"
     };
   }
-  
-  if (text.includes("rice") || text.includes("carb") || text.includes("bhat") || text.includes("sugar") || text.includes("sweet") || text.includes("misti") || text.includes("muri") || text.includes("chira") || text.includes("roti") || text.includes("bread") || text.includes("wheat") || text.includes("ভাত") || text.includes("মিষ্টি")) {
-    return {
-      question: queryText,
-      category: "carb_portion",
-      whyThisMatters: "Refined carbohydrates like white rice form the core of traditional Bangladeshi meals, but excess portions can elevate blood sugar levels.",
-      basedOn: ["Custom search query", "Rice or carbohydrate keywords"],
-      safeAnswer: "Based on available meal logs, carbohydrate and rice portions are worth discussing. White rice can be balanced with fiber and protein. Speak with your healthcare professional to find a suitable portion target for your activity level rather than completely eliminating rice.",
-      bangladeshiFoodExamples: ["Replacing some white rice with lal atta roti", "Adding fiber-rich dal or vegetables to balance rice", "Puffed rice (muri) as a light snack"],
-      whatToTrackNext: ["Rice portion sizes (e.g., measured in cups)", "Energy levels after high-carb meals"],
-      doctorDiscussionPrompt: "What portion of white rice or roti is suitable for my goals, and how can I balance carbs with vegetables and protein?"
-    };
-  }
 
-  if (text.includes("fiber") || text.includes("veg") || text.includes("shak") || text.includes("shobji") || text.includes("salad") || text.includes("fruit") || text.includes("cucumber") || text.includes("shobzi") || text.includes("সবজি") || text.includes("শাক")) {
-    return {
-      question: queryText,
-      category: "fiber",
-      whyThisMatters: "Fiber supports digestive regularity, blood sugar balance, and heart health. Traditional meals can sometimes lack sufficient vegetables.",
-      basedOn: ["Custom search query", "Fiber or vegetable keywords"],
-      safeAnswer: "Based on available meal logs, increasing fiber is a helpful topic to discuss. Adding local greens (shak) or seasonal vegetables gradually can improve fiber intake. Start slowly to avoid bloating.",
-      bangladeshiFoodExamples: ["Lal shak, palong shak, or pui shak", "Mixed vegetables (shobji) cooked with minimal oil", "Local fruits like guava (peyara) or papaya (pepe)"],
-      whatToTrackNext: ["Daily servings of cooked vegetables/shak", "Water intake to support fiber digestion"],
-      doctorDiscussionPrompt: "How can I add more local fiber-rich foods to my routine safely, and are there vegetables I should avoid if I have a sensitive stomach?"
-    };
-  }
-
+  // 6. Protein Concern
   if (text.includes("protein") || text.includes("egg") || text.includes("dim") || text.includes("fish") || text.includes("mach") || text.includes("chicken") || text.includes("murgi") || text.includes("meat") || text.includes("beef") || text.includes("mutton") || text.includes("dal") || text.includes("lentil") || text.includes("chola") || text.includes("yogurt") || text.includes("ডিম") || text.includes("মাছ") || text.includes("ডাল")) {
     return {
       question: queryText,
       category: "protein",
       whyThisMatters: "Protein is vital for muscle mass, immune function, and feeling full. Lean and plant-based protein sources are affordable and healthy options.",
-      basedOn: ["Custom search query", "Protein or fish/egg/lentil keywords"],
-      safeAnswer: "Based on available meal logs, protein intake may be worth discussing. Incorporating a balance of animal (fish, egg, chicken) and plant-based (dal, chola) proteins helps meet your nutrition goals without adding excessive saturated fat.",
-      bangladeshiFoodExamples: ["Boiled eggs (dim)", "Small local fish (mola, kachki)", "Rui, Katla, or tilapia", "Lentil dal soup", "Chickpeas (chola)"],
+      basedOn: ["Custom query", "Protein or fish/egg/lentil keywords"],
+      safeAnswer: "Based on available meal logs, protein intake may be worth discussing. Incorporating a balance of animal and plant-based proteins helps meet your nutrition goals safely.",
+      bangladeshiFoodExamples: ["Eggs (dim)", "Small local fish (mola, kachki)", "Lentil dal soup", "Chickpeas (chola)"],
       whatToTrackNext: ["Protein portions in each major meal", "Daily egg or lentil servings"],
-      doctorDiscussionPrompt: "What is a safe daily protein intake for my kidneys, heart, and activity level?"
+      doctorDiscussionPrompt: "What is a safe and sufficient daily protein intake for my health needs and activity level?"
     };
   }
 
-  if (text.includes("salt") || text.includes("sodium") || text.includes("salty") || text.includes("blood pressure") || text.includes("bp") || text.includes("pressure") || text.includes("hypertension") || text.includes("achar") || text.includes("pickle") || text.includes("shutki") || text.includes("লবণ")) {
+  // 7. Fiber / Vegetable Concern
+  if (text.includes("fiber") || text.includes("veg") || text.includes("shak") || text.includes("shobji") || text.includes("salad") || text.includes("fruit") || text.includes("সবজি") || text.includes("শাক")) {
     return {
       question: queryText,
-      category: "sodium",
-      whyThisMatters: "Excessive salt is a major contributor to high blood pressure. Traditional pickles, shutki (dried fish), and processed snacks are high in sodium.",
-      basedOn: ["Custom search query", "Salt or blood pressure concerns"],
-      safeAnswer: "Based on available meal logs, sodium levels may be worth discussing if heart health or blood pressure is a priority. Try seasoning with lime juice, garlic, ginger, and green herbs to reduce table salt.",
-      bangladeshiFoodExamples: ["Fresh lemon juice (lebu)", "Coriander leaves (dhone pata)", "Reducing shutki and processed snacks like chanachur"],
-      whatToTrackNext: ["Acreage of added table salt", "Frequency of pickles or dried fish consumption"],
-      doctorDiscussionPrompt: "What is my daily sodium limit, and how can I replace salt in my favorite deshi foods without losing flavor?"
+      category: "fiber",
+      whyThisMatters: "Fiber supports digestive regularity, blood sugar balance, and heart health. Traditional meals can sometimes lack sufficient vegetables.",
+      basedOn: ["Custom query", "Fiber or vegetable keywords"],
+      safeAnswer: "Based on available meal logs, increasing fiber is a helpful topic to discuss. Adding local greens (shak) or seasonal vegetables gradually can improve fiber intake.",
+      bangladeshiFoodExamples: ["Lal shak, palong shak, or pui shak", "Mixed vegetables (shobji) with minimal oil", "Local fruits like guava (peyara)"],
+      whatToTrackNext: ["Daily servings of cooked vegetables/shak", "Water intake to support fiber digestion"],
+      doctorDiscussionPrompt: "How can I add more local fiber-rich foods to my routine safely?"
     };
   }
 
-  if (text.includes("gastric") || text.includes("ulcer") || text.includes("acid") || text.includes("reflux") || text.includes("spicy") || text.includes("jhal") || text.includes("chili") || text.includes("stomach") || text.includes("bloat") || text.includes("গ্যাস")) {
+  // 8. Weight Goal
+  if (text.includes("weight") || text.includes("fat loss") || text.includes("gain weight") || text.includes("obese") || text.includes("চিকন") || text.includes("ওজন")) {
     return {
       question: queryText,
-      category: "general",
-      whyThisMatters: "Acid reflux or gastric discomfort can be triggered by spicy, oily, or acidic foods in sensitive systems.",
-      basedOn: ["Custom search query", "Gastric or spicy food keywords"],
-      safeAnswer: "Based on available meal logs, spicy or oily meals are worth discussing for gastric comfort. Preparing milder versions of your favorite curries can support digestion. Consult a doctor for any persistent pain.",
-      bangladeshiFoodExamples: ["Soft khichuri with minimal spices", "Boiled vegetables like bottle gourd (lau) or sweet pumpkin (misti kumra)", "Stewed papaya"],
-      whatToTrackNext: ["Food triggers that cause acid reflux", "Gap between mealtime and sleeping"],
-      doctorDiscussionPrompt: "Are there specific spices or ingredients I should avoid to prevent gastric irritation, and what are safe meal alternatives?"
-    };
-  }
-
-  if (text.includes("habit") || text.includes("nudge") || text.includes("water") || text.includes("drink") || text.includes("walk") || text.includes("exercise") || text.includes("activity") || text.includes("sleep") || text.includes("step") || text.includes("হাঁটা") || text.includes("পানি")) {
-    return {
-      question: queryText,
-      category: "general",
-      whyThisMatters: "Lifestyle factors like movement, consistent sleep, and hydration support metabolism, heart health, and mental well-being.",
-      basedOn: ["Custom search query", "Habit or water keywords"],
-      safeAnswer: "Based on available meal logs and habit data, lifestyle metrics are worth discussing. Focus on drinking adequate clean water (around 8-10 glasses) and engaging in light walking after meals to assist digestion.",
-      bangladeshiFoodExamples: ["Drinking water from a designated bottle", "Taking a 10-15 minute walk after dinner", "Tracking habits consistently"],
-      whatToTrackNext: ["Glasses of water drank daily", "Daily walk duration in minutes"],
-      doctorDiscussionPrompt: "How do my walking and hydration habits support my metabolic health, and what are reasonable goals for me?"
+      category: "weight_goal",
+      whyThisMatters: "Weight management is about energy balance and nutrient density. Small adjustments in portion sizes and food quality lead to sustainable changes.",
+      basedOn: ["Custom query", "Weight goal keywords"],
+      safeAnswer: "Sustainable weight change should be discussed with a professional. Focus on portion control of calorie-dense foods while increasing volume through vegetables and fiber.",
+      bangladeshiFoodExamples: ["Replacing some rice with extra vegetables", "Choosing water or lebu sharbat (no sugar) over soft drinks", "Smaller portions of calorie-dense curries"],
+      whatToTrackNext: ["Daily rice and bread portions", "Frequency of snacks and sugary drinks", "Physical activity levels"],
+      doctorDiscussionPrompt: "What is a healthy weight target for me, and how can I adjust my traditional meals to support this sustainably?"
     };
   }
 
@@ -148,9 +171,9 @@ function parseCustomQuery(queryText: string): Omit<CareCompanionQuestion, "id" |
   return {
     question: queryText,
     category: "general",
-    whyThisMatters: "Based on your custom query.",
+    whyThisMatters: "I've analyzed your custom query to provide a safe nutrition discussion starter.",
     basedOn: ["Custom query input"],
-    safeAnswer: "I can help turn this into a doctor/dietitian discussion question. Please mention a food, habit, or goal (e.g., 'rice portions', 'reducing fried foods', 'how to add fiber'). This will help me reference your available meal patterns safely.",
+    safeAnswer: "I can help turn this into a nutrition discussion question. Try asking about a food, meal pattern, or health goal, for example: 'How can I reduce oily food?' or 'How can I add more protein?'",
     bangladeshiFoodExamples: [],
     whatToTrackNext: [],
     doctorDiscussionPrompt: `How can I safely adjust my diet to address my question: "${queryText}"?`
@@ -591,137 +614,168 @@ General nutrition guidance — not medical advice.`;
       </main>
 
       <Sheet open={isPanelOpen} onOpenChange={setIsPanelOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto p-6 space-y-6 bg-card border-l border-border/80">
-          {selectedQuestion && (
-            <>
-              <SheetHeader className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider bg-sky-500/10 text-sky-700 border-sky-200">
-                    Category: {selectedQuestion.category.replace("_", " ")}
-                  </Badge>
-                  <Badge variant={selectedQuestion.confidence === "high" ? "default" : selectedQuestion.confidence === "medium" ? "secondary" : "outline"} className="text-[10px] uppercase font-bold tracking-wider">
-                    Confidence: {selectedQuestion.confidence}
-                  </Badge>
-                </div>
-                <SheetTitle className="font-display text-xl font-bold leading-snug">
-                  {selectedQuestion.question}
-                </SheetTitle>
-              </SheetHeader>
-
-              <div className="space-y-5">
-                {/* Safe Answer Section */}
-                <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                    Nanumoni Safe Answer
-                  </div>
-                  <p className="text-sm text-foreground/90 leading-relaxed font-medium">
-                    {selectedQuestion.safeAnswer}
-                  </p>
-                </div>
-
-                {/* Why Suggested Section */}
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Why this was suggested</h4>
-                  <p className="text-sm text-foreground/80 leading-relaxed">
-                    {selectedQuestion.whyThisMatters}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {selectedQuestion.basedOn.map((b, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-[9px] font-medium bg-muted text-muted-foreground">
-                        {b}
+        <SheetContent side="right" className="w-full sm:max-w-[480px] overflow-y-auto p-0 flex flex-col bg-slate-50 border-l border-border/80">
+          {selectedQuestion && (() => {
+            const isCritical = ["heart_health", "blood_pressure", "blood_sugar", "kidney"].includes(selectedQuestion.category);
+            
+            return (
+              <>
+                <div className="sticky top-0 z-10 bg-white border-b p-6 space-y-4 shadow-sm">
+                  <SheetHeader className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={cn(
+                        "text-[10px] uppercase font-black tracking-widest px-2 py-0.5 border-2",
+                        isCritical ? "bg-red-50 text-red-700 border-red-100" : "bg-sky-50 text-sky-700 border-sky-100"
+                      )}>
+                        {selectedQuestion.category.replace("_", " ")}
                       </Badge>
-                    ))}
+                      <Badge variant={selectedQuestion.confidence === "high" ? "default" : selectedQuestion.confidence === "medium" ? "secondary" : "outline"} className="text-[10px] uppercase font-black tracking-widest px-2 py-0.5">
+                        Confidence: {selectedQuestion.confidence}
+                      </Badge>
+                    </div>
+                    <SheetTitle className="font-display text-2xl font-bold leading-tight text-foreground">
+                      {selectedQuestion.question}
+                    </SheetTitle>
+                  </SheetHeader>
+                </div>
+
+                <div className="flex-1 p-6 space-y-6">
+                  {/* 1. Safe Answer Card */}
+                  <Card className="border-none shadow-soft overflow-hidden">
+                    <div className="bg-emerald-600 px-4 py-2 flex items-center gap-2 text-white">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Safe Discussion Guide</span>
+                    </div>
+                    <CardContent className="p-4 bg-white">
+                      <p className="text-sm text-foreground/90 leading-relaxed font-medium">
+                        {selectedQuestion.safeAnswer}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* 2. Urgent Red Flag for Critical Categories */}
+                  {isCritical && (
+                    <div className="p-4 bg-red-50 border-2 border-red-100 rounded-2xl flex gap-3 animate-in zoom-in-95 duration-300">
+                      <AlertCircle className="h-6 w-6 text-red-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-black text-red-800 uppercase tracking-tight">Urgent Health Note</p>
+                        <p className="text-xs text-red-700 leading-relaxed font-semibold">
+                          If you have chest pain, breathing difficulty, fainting, sudden weakness, or severe symptoms, seek urgent medical help immediately.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Details Sections */}
+                  <div className="space-y-6">
+                    <section className="space-y-2">
+                      <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">
+                        <Info className="h-3.5 w-3.5" /> Why this was suggested
+                      </h4>
+                      <div className="bg-white rounded-xl border p-3 shadow-sm">
+                        <p className="text-sm text-foreground/80 leading-relaxed">
+                          {selectedQuestion.whyThisMatters}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {selectedQuestion.basedOn.map((b, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-[9px] font-bold bg-slate-100 text-slate-600 border-none px-2 py-0">
+                              {b}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+
+                    {selectedQuestion.bangladeshiFoodExamples.length > 0 && (
+                      <section className="space-y-2">
+                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">
+                          <Utensils className="h-3.5 w-3.5" /> Desi Food Examples
+                        </h4>
+                        <div className="bg-white rounded-xl border p-3 shadow-sm grid grid-cols-1 gap-2">
+                          {selectedQuestion.bangladeshiFoodExamples.map((ex, idx) => (
+                            <div key={idx} className="flex items-center gap-3 text-sm text-foreground/80">
+                              <div className="h-1.5 w-1.5 rounded-full bg-primary/40 shrink-0" />
+                              <span className="leading-snug">{ex}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {selectedQuestion.whatToTrackNext.length > 0 && (
+                      <section className="space-y-2">
+                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">
+                          <ListTodo className="h-3.5 w-3.5" /> What to Track Next
+                        </h4>
+                        <div className="bg-white rounded-xl border p-3 shadow-sm space-y-2">
+                          {selectedQuestion.whatToTrackNext.map((track, idx) => (
+                            <div key={idx} className="flex gap-3 items-start text-sm text-foreground/80">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                              <span className="font-medium">{track}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* 4. Doctor Prompt Section */}
+                    <section className="space-y-2">
+                      <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/80">
+                        <Stethoscope className="h-3.5 w-3.5" /> Discussion Prompt
+                      </h4>
+                      <div className="bg-slate-900 rounded-2xl p-4 shadow-lg relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                           <Stethoscope className="h-12 w-12 text-white" />
+                        </div>
+                        <p className="text-sm italic font-medium leading-relaxed text-slate-200 relative z-10">
+                          "{selectedQuestion.doctorDiscussionPrompt}"
+                        </p>
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedQuestion.doctorDiscussionPrompt);
+                            toast.success("Prompt copied!");
+                          }}
+                          className="mt-4 w-full text-[10px] font-black uppercase tracking-widest h-8 rounded-lg bg-white/10 text-white border-white/20 hover:bg-white/20"
+                        >
+                          Copy Prompt to Clipboard
+                        </Button>
+                      </div>
+                    </section>
                   </div>
                 </div>
 
-                {/* Bangladeshi Food Examples */}
-                {selectedQuestion.bangladeshiFoodExamples.length > 0 && (
-                  <div className="space-y-1.5">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bangladeshi Food Swaps/Examples</h4>
-                    <ul className="list-disc pl-5 text-sm text-foreground/80 space-y-1">
-                      {selectedQuestion.bangladeshiFoodExamples.map((ex, idx) => (
-                        <li key={idx} className="leading-snug">{ex}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* What to Track Next */}
-                {selectedQuestion.whatToTrackNext.length > 0 && (
-                  <div className="space-y-1.5">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">What to Track Next</h4>
-                    <ul className="space-y-1.5">
-                      {selectedQuestion.whatToTrackNext.map((track, idx) => (
-                        <li key={idx} className="flex gap-2 items-start text-sm text-foreground/80 bg-muted/20 p-2 rounded-lg">
-                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          <span>{track}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Doctor Prompt Section */}
-                <div className="bg-muted/40 border border-border/80 rounded-2xl p-4 space-y-2.5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Doctor/Dietitian discussion prompt</h4>
-                  <div className="bg-background border border-border/80 rounded-xl p-3 text-xs italic font-medium leading-relaxed relative">
-                    "{selectedQuestion.doctorDiscussionPrompt}"
-                  </div>
+                <div className="sticky bottom-0 z-10 bg-white border-t p-6 space-y-3 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
                   <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedQuestion.doctorDiscussionPrompt);
-                      toast.success("Prompt copied to clipboard!");
-                    }}
-                    className="w-full text-xs font-semibold h-8 rounded-lg"
+                    onClick={() => handleCopyAnswer(selectedQuestion)} 
+                    className="w-full h-12 text-sm font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-warm"
                   >
-                    Copy this prompt
+                    <Clipboard className="mr-2 h-4 w-4" /> Copy Explanation
                   </Button>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <SheetClose asChild>
+                      <Button variant="outline" className="h-11 text-xs font-bold rounded-xl border-border/80">
+                        Close
+                      </Button>
+                    </SheetClose>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleWhatsApp()} 
+                      className="h-11 text-xs font-bold rounded-xl bg-[#25D366] text-white hover:bg-[#128C7E] border-transparent"
+                    >
+                      <Share2 className="mr-2 h-4 w-4" /> Share
+                    </Button>
+                  </div>
+
+                  <p className="text-[10px] text-center text-muted-foreground italic leading-tight px-4">
+                    General guidance only — not a substitute for clinical advice.
+                  </p>
                 </div>
-              </div>
-
-              {/* Share/Action Strip */}
-              <div className="pt-4 border-t border-border space-y-2">
-                <Button 
-                  onClick={() => handleCopyAnswer(selectedQuestion)} 
-                  className="w-full h-10 text-xs font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  <Clipboard className="mr-2 h-4 w-4" /> Copy this answer
-                </Button>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={handleCopy} 
-                    className="h-10 text-xs font-semibold rounded-xl"
-                  >
-                    Copy Full Summary
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleWhatsApp} 
-                    className="h-10 text-xs font-semibold rounded-xl bg-[#25D366] text-white hover:bg-[#128C7E] border-transparent"
-                  >
-                    Share WhatsApp
-                  </Button>
-                </div>
-                <SheetClose asChild>
-                  <Button variant="ghost" className="w-full h-10 text-xs font-semibold text-muted-foreground">
-                    Close Explanation
-                  </Button>
-                </SheetClose>
-              </div>
-
-              {/* Disclaimer */}
-              <div className="flex gap-1.5 p-2.5 bg-red-50/50 border border-red-100 rounded-xl text-[10px] text-red-800 leading-tight">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 mt-0.5" />
-                <span>
-                  <strong>Clinical Safety Note:</strong> General guidance only. Always consult a healthcare professional before altering medical routines.
-                </span>
-              </div>
-            </>
-          )}
+              </>
+            );
+          })()}
         </SheetContent>
       </Sheet>
     </div>

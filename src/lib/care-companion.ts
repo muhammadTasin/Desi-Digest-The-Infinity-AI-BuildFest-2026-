@@ -26,6 +26,13 @@ export type CareCompanionQuestion = {
     | "budget"
     | "meal_timing"
     | "heart_health"
+    | "blood_pressure"
+    | "cholesterol"
+    | "blood_sugar"
+    | "gastric"
+    | "kidney"
+    | "pregnancy"
+    | "allergy"
     | "weight_goal"
     | "general";
   whyThisMatters: string;
